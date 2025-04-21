@@ -13,7 +13,7 @@ import edu.auburn.pFogSim.util.DataInterpreter;
 import edu.boun.edgecloudsim.core.ScenarioFactory;
 import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
-import edu.boun.edgecloudsim.sample_voronoi_app.SampleScenarioFactory;
+import edu.boun.edgecloudsim.sample_application.SampleScenarioFactory;
 import edu.boun.edgecloudsim.utils.SimLogger;
 import edu.boun.edgecloudsim.utils.SimUtils;
 import org.cloudbus.cloudsim.Log;

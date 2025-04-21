@@ -60,7 +60,7 @@ public class SampleScenarioFactory implements ScenarioFactory {
 	 * @param _orchestratorPolicy
 	 * @param _simScenario
 	 */
-	SampleScenarioFactory(int _numOfMobileDevice,
+	public SampleScenarioFactory(int _numOfMobileDevice,
 			double _simulationTime,
 			String _orchestratorPolicy,
 			String _simScenario){
