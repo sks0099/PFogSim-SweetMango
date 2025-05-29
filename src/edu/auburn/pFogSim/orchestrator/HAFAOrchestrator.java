@@ -12,10 +12,8 @@ package edu.auburn.pFogSim.orchestrator;
  * 
  */
 import edu.boun.edgecloudsim.core.SimManager;
-import edu.boun.edgecloudsim.edge_client.Task;
 import edu.boun.edgecloudsim.edge_orchestrator.EdgeOrchestrator;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
-import edu.boun.edgecloudsim.edge_server.EdgeVM;
 import edu.auburn.pFogSim.netsim.NodeSim;
 import edu.auburn.pFogSim.util.MobileDevice;
 import edu.auburn.pFogSim.netsim.ESBModel;
@@ -89,6 +87,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	/**
 	 * Return detailed metrics of HAFA orchestrator - Number of Puddles searched per service request (device)
 	 */
+	@Override
 	public int[] getNumPuddlesSearched() {	
 		return this.numPuddlesSearched;
 	}
@@ -144,6 +143,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	 * 
 	 * @return
 	 */
+	@Override
 	public double getAvgNumProspectiveHosts() {
 		int devCount = SimManager.getInstance().getNumOfMobileDevice();
 		int assignedDevCount = 0;
@@ -166,6 +166,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	 * @param deviceId
 	 * @param msgCount
 	 */
+	@Override
 	public void addNumMessages(int deviceId, int msgCount) {
 		this.numMessages[deviceId] += msgCount;
 	}
@@ -175,6 +176,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	 * 
 	 * @return
 	 */
+	@Override
 	public double getAvgNumMessages() {
 		int devCount = SimManager.getInstance().getNumOfMobileDevice();
 		int assignedDevCount = 0;
@@ -197,6 +199,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	 * @param deviceId
 	 * @param pudCount
 	 */
+	@Override
 	public void addNumPuddlesSearched(int deviceId, int pudCount) {
 		this.numPuddlesSearched[deviceId] += pudCount;
 	}
@@ -206,6 +209,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	 * 
 	 * @return
 	 */
+	@Override
 	public double getAvgNumPuddlesSearched() {
 		int devCount = SimManager.getInstance().getNumOfMobileDevice();
 		int assignedDevCount = 0;
@@ -221,47 +225,6 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 		
 		return ((double)totalPuddlesSearched / assignedDevCount );		
 	}
-	
-	
-	/**
-	 * get the id of the appropriate host
-	 */
-	@Override
-	public int getDeviceToOffload(Task task) {
-		try {
-			return getHost(task).getId();
-		}
-		catch (NullPointerException e) {
-			return -1;
-		}
-	}
-	
-
-	/**
-	 * get the appropriate VM to run on
-	 */
-	@Override
-	public EdgeVM getVmToOffload(Task task) {
-		try {
-			return ((EdgeVM) getHost(task).getVmList().get(0));
-		}
-		catch (NullPointerException e) {
-			return null;
-		}
-	}
-	
-
-	/**
-	 * find a proper host to place the task
-	 * @param task
-	 * @return
-	 */
-	private EdgeHost getHost(Task task) {
-		MobileDevice mb = SimManager.getInstance().getMobileDeviceManager().getMobileDevices().get(task.getMobileDeviceId());
-		task.setPath(mb.getPath());
-		return mb.getHost();		
-	}
-	
 
 	/** 
 	 * This method identifies an efficient fog node to host the application service for given mobile device. 

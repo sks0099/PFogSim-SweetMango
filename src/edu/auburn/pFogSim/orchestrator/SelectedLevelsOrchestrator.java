@@ -9,13 +9,10 @@ import edu.auburn.pFogSim.netsim.NodeSim;
 import edu.auburn.pFogSim.util.MobileDevice;
 import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
-import edu.boun.edgecloudsim.edge_client.Task;
 import edu.boun.edgecloudsim.edge_orchestrator.EdgeOrchestrator;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
-import edu.boun.edgecloudsim.edge_server.EdgeVM;
 import edu.boun.edgecloudsim.utils.Location;
 import edu.boun.edgecloudsim.utils.SimLogger;
-
 
 /**
  * Note: This class needs to be tested thoroughly. There may be bugs / issues.
@@ -90,47 +87,6 @@ public class SelectedLevelsOrchestrator extends EdgeOrchestrator {
 		this.avgNumMessages = this.avgNumProspectiveHosts * 2; // For each service request (i.e. per device), each host receives resource availability request & sends response.
 		
 	}
-
-
-	/**
-	 * get the id of the appropriate host
-	 */
-	@Override
-	public int getDeviceToOffload(Task task) {
-		try {
-			return getHost(task).getId();
-		}
-		catch (NullPointerException e) {
-			return -1;
-		}
-	}
-	
-	
-	/**
-	 * the the appropriate VM to run on
-	 */
-	@Override
-	public EdgeVM getVmToOffload(Task task) {
-		try {
-			return ((EdgeVM) getHost(task).getVmList().get(0));
-		}
-		catch (NullPointerException e) {
-			return null;
-		}
-	}
-	
-	
-	/**
-	 * 
-	 * @param task
-	 * @return
-	 */
-	private EdgeHost getHost(Task task) {
-		MobileDevice mb = SimManager.getInstance().getMobileDeviceManager().getMobileDevices().get(task.getMobileDeviceId());
-		task.setPath(mb.getPath());
-		return mb.getHost();
-	}
-
 	
 	/**
 	 * 
@@ -269,59 +225,5 @@ public class SelectedLevelsOrchestrator extends EdgeOrchestrator {
 	public void setHostLevelMap(Map<Integer, ArrayList<EdgeHost>> hostLevelMap) {
 		this.hostLevelMap = hostLevelMap;
 	}
-	
-	
-	/**
-	 * 
-	 * @param deviceId
-	 * @param hostCount
-	 */
-	public void addNumProspectiveHosts(int deviceId, int hostCount) {
-	}
-	
-	
-	/**
-	 * 
-	 * @return
-	 */
-	public double getAvgNumProspectiveHosts() {
-		return ((double)this.avgNumProspectiveHosts);		
-	}
-		
-
-	/**
-	 * @param deviceId
-	 * @param msgCount
-	 */
-	public void addNumMessages(int deviceId, int msgCount) {
-	}
-	
-	
-	/**
-	 * 
-	 * @return
-	 */
-	public double getAvgNumMessages() {
-		return ((double)this.avgNumMessages);		
-	}
-		
-	
-	/**
-	 * 
-	 * @param deviceId
-	 * @param pudCount
-	 */
-	public void addNumPuddlesSearched(int deviceId, int pudCount) {
-	}
-	
-	
-	/**
-	 * 
-	 * @return
-	 */
-	public double getAvgNumPuddlesSearched() {
-		return ((double)0);		
-	}
-	
 	
 }

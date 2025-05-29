@@ -19,10 +19,8 @@ import edu.auburn.pFogSim.netsim.ESBModel;
 import edu.auburn.pFogSim.netsim.NodeSim;
 import edu.auburn.pFogSim.util.MobileDevice;
 import edu.boun.edgecloudsim.core.SimManager;
-import edu.boun.edgecloudsim.edge_client.Task;
 import edu.boun.edgecloudsim.edge_orchestrator.EdgeOrchestrator;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
-import edu.boun.edgecloudsim.edge_server.EdgeVM;
 import edu.boun.edgecloudsim.utils.Location;
 
 
@@ -82,46 +80,6 @@ public class CentralOrchestrator extends EdgeOrchestrator {
 				
 	}
 
-	
-	/**
-	 * get the id of the appropriate host
-	 */
-	@Override
-	public int getDeviceToOffload(Task task) {
-		try {
-			return getHost(task).getId();
-		}
-		catch (NullPointerException e) {
-			return -1;
-		}
-	}
-
-	
-	/**
-	 * the the appropriate VM to run on
-	 */
-	@Override
-	public EdgeVM getVmToOffload(Task task) {
-		try {
-		return ((EdgeVM) getHost(task).getVmList().get(0));
-		}
-		catch (NullPointerException e) {
-			return null;
-		}
-	}
-
-	
-	/**
-	 * find the host
-	 * @param task
-	 * @return
-	 */
-	private EdgeHost getHost(Task task) {
-		MobileDevice mb = SimManager.getInstance().getMobileDeviceManager().getMobileDevices().get(task.getMobileDeviceId());
-		task.setPath(mb.getPath());
-		return mb.getHost();
-	}
-	
 	
 	/* 
 	 * @ author Qian Wang
@@ -259,58 +217,4 @@ public class CentralOrchestrator extends EdgeOrchestrator {
 	public void setPathTable(HashMap<NodeSim, HashMap<NodeSim, LinkedList<NodeSim>>> pathTable) {
 		this.pathTable = pathTable;
 	}
-	
-	
-	/**
-	 * 
-	 * @param deviceId
-	 * @param hostCount
-	 */
-	public void addNumProspectiveHosts(int deviceId, int hostCount) {
-	}
-	
-	
-	/**
-	 * 
-	 * @return
-	 */
-	public double getAvgNumProspectiveHosts() {
-		return (this.avgNumProspectiveHosts);		
-	}
-		
-
-	/**
-	 * @param deviceId
-	 * @param msgCount
-	 */
-	public void addNumMessages(int deviceId, int msgCount) {
-	}
-	
-	
-	/**
-	 * 
-	 * @return
-	 */
-	public double getAvgNumMessages() {
-		return (this.avgNumMessages);		
-	}
-		
-	
-	/**
-	 * 
-	 * @param deviceId
-	 * @param pudCount
-	 */
-	public void addNumPuddlesSearched(int deviceId, int pudCount) {
-	}
-	
-	
-	/**
-	 * 
-	 * @return
-	 */
-	public double getAvgNumPuddlesSearched() {
-		return (0);		
-	}
-	
 }

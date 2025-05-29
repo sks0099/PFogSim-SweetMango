@@ -57,14 +57,37 @@ public abstract class EdgeOrchestrator {
 	/*
 	 * decides where to offload
 	 */
-	public abstract int getDeviceToOffload(Task task);
-	
+	public int getDeviceToOffload(Task task) {
+		try {
+			return getHost(task).getId();
+		} catch (NullPointerException e) {
+			return -1;
+		}
+	}
 	
 	/*
 	 * returns proper VM from the related edge orchestrator point of view
 	 */
-	public abstract EdgeVM getVmToOffload(Task task);
-	
+	public EdgeVM getVmToOffload(Task task) {
+		try {
+			return (EdgeVM) getHost(task).getVmList().get(0);
+		} catch (NullPointerException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Find the Host
+	 * 
+	 * @param task
+	 * @return
+	 */
+	protected EdgeHost getHost(Task task) {
+		MobileDevice mb = SimManager.getInstance().getMobileDeviceManager().getMobileDevices()
+				.get(task.getMobileDeviceId());
+		task.setPath(mb.getPath());
+		return mb.getHost();
+	}
 	
 	/**
 	 * is the host capable of servicing the task
@@ -147,52 +170,46 @@ public abstract class EdgeOrchestrator {
 	public Datacenter getCloud() {
 		return cloud;
 	}
-	
-	
-	/**
-	 * 
-	 * @param deviceId
-	 * @param hostCount
-	 */
-	public abstract void addNumProspectiveHosts(int deviceId, int hostCount);
-	
 		
 	/**
 	 * 
 	 * @return
 	 */
-	public abstract double getAvgNumProspectiveHosts();
-
+	public double getAvgNumProspectiveHosts() {
+		return this.avgNumProspectiveHosts;
+	}
 		
 	/**
 	 * 
 	 * @param deviceId
 	 * @param msgCount
 	 */
-	public abstract void addNumMessages (int deviceId, int msgCount);
-	
+	public void addNumMessages(int deviceId, int msgCount) {
+	}
 	
 	/**
 	 * 
 	 * @return
 	 */
-	public abstract double getAvgNumMessages();
-	
+	public double getAvgNumMessages() {
+		return this.avgNumMessages;
+	}
 	
 	/**
 	 * 
 	 * @param deviceId
 	 * @param pudCount
 	 */
-	public abstract void addNumPuddlesSearched(int deviceId, int pudCount);
-	
+	public void addNumPuddlesSearched(int deviceId, int pudCount) {
+	}
 	
 	/**
 	 * 
 	 * @return
 	 */
-	public abstract double getAvgNumPuddlesSearched();
-	
+	public double getAvgNumPuddlesSearched() {
+		return 0.0;
+	}
 	
 	/**
 	 * Return detailed metrics of HAFA orchestrator - Number of prospective hosts per service request (device)
