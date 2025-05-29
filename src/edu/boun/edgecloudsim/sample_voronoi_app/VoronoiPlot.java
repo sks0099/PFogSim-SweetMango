@@ -3,6 +3,7 @@ package edu.boun.edgecloudsim.sample_voronoi_app;
 //import javafx.util.Pair;
 //import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.commons.math3.util.Pair;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -16,9 +17,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Objects;
+
+import static edu.boun.edgecloudsim.sample_voronoi_app.KDTree.*;
 
 public class VoronoiPlot extends JPanel {
 
@@ -43,6 +45,15 @@ public class VoronoiPlot extends JPanel {
     private static String fogNodeFileName = "fogNode_loc.json";
     private static String mobileDeviceFileName = "mobile_loc.json";
 
+    public static double centroid_x =  0.0;
+    public static double centroid_y = 0.0;
+    public static double scaling_factor = 1.0;
+    public static Point getScaledPoint(Point pointXY){
+        //Point scaledPoint = new Point();
+        double scaledPointX = (pointXY.x - centroid_x)*scaling_factor;
+        double scaledPointY = (pointXY.y - centroid_y)*scaling_factor;
+        return (new Point(scaledPointX, scaledPointY));
+    }
     public static void createFogNodePlot(String fogNodeFileName, String mobileDeviceFileName){
         JSONParser jsonParser = new JSONParser();
         JSONObject jsonObject = new JSONObject();
@@ -54,7 +65,7 @@ public class VoronoiPlot extends JPanel {
         double y = 0.0;
         double z = 0.0;
         double R = 6378137.0; //in meter at equator
-        double scaling_factor = 1.0; //0.000032;
+        //scaling_factor = 1.0; //0.000032;
         //double x_translation = -6.0;
         //double y_translation = 152.0;
 
@@ -82,8 +93,8 @@ public class VoronoiPlot extends JPanel {
             double sum_latitude = 0.0;
             double centroid_longitude = 0.0;
             double centroid_latitude = 0.0;
-            double centroid_x =  0.0;
-            double centroid_y = 0.0;
+            //double centroid_x =  0.0;
+            //double centroid_y = 0.0;
             double x_min = 0.0;
             double x_max = 0.0;
             double y_min = 0.0;
@@ -153,13 +164,13 @@ public class VoronoiPlot extends JPanel {
             //System.exit(0);
 
             //translate the points according to the centroid and add them to the list
-            for (edu.boun.edgecloudsim.sample_voronoi_app.Point p: fogNodePoints) {
+            /*for (edu.boun.edgecloudsim.sample_voronoi_app.Point p: fogNodePoints) {
                 //System.out.println(p.x + ", "+ p.y);
                 p.x -= centroid_x;
                 p.x *= scaling_factor;
                 p.y -= centroid_y;
                 p.y *= scaling_factor;
-            }
+            }*/
             /*for (Point p: fogNodePoints) {
                 System.out.println(p.x + ", "+ p.y);
             }
@@ -242,6 +253,14 @@ public class VoronoiPlot extends JPanel {
             System.out.println("scaling_factor = "+scaling_factor);
             //System.exit(0);
 
+            for (edu.boun.edgecloudsim.sample_voronoi_app.Point p: fogNodePoints) {
+                //System.out.println(p.x + ", "+ p.y);
+                p.x -= centroid_x;
+                p.x *= scaling_factor;
+                p.y -= centroid_y;
+                p.y *= scaling_factor;
+            }
+
             //translate the points according to the centroid and add them to the list
             for (edu.boun.edgecloudsim.sample_voronoi_app.Point p: mobileDevicePoints) {
                 //System.out.println(p.x + ", "+ p.y);
@@ -251,8 +270,59 @@ public class VoronoiPlot extends JPanel {
                 p.y *= scaling_factor;
             }
 
-            Voronoi fog_node_voronoi = new Voronoi(fogNodePoints);
-            fog_node_voronoi.plot(fogNodePoints, mobileDevicePoints);
+            //Voronoi fog_node_voronoi = new Voronoi(fogNodePoints);
+            Voronoi fog_node_voronoi = new Voronoi(fogNodeFileName);
+            System.out.println(fog_node_voronoi.fogNodesLongLat);
+            List<Point> fogNodesLongLatList = new ArrayList<>(fog_node_voronoi.fogNodesLongLat);
+            fog_node_voronoi.sortedFogNodesLongLat = new ArrayList<>(fog_node_voronoi.sortArray(fogNodesLongLatList));
+            System.out.println("fog_node_voronoi.sortedFogNodesLongLat = \n"+fog_node_voronoi.sortedFogNodesLongLat);
+            fog_node_voronoi.setFogNodeXYCoordinate(fogNodesLongLatList);
+            fog_node_voronoi.setSortedFogNodesXY(fog_node_voronoi.fogNodesXY);
+            System.out.println("fog_node_voronoi.setSortedFogNodesXY = \n"+fog_node_voronoi.sortedFogNodesXY);
+            //fog_node_voronoi.set
+            /*List<Point> testList = new ArrayList();
+            List<Point> sortedList = new ArrayList();
+            testList.add(new Point(1.0,1.0));
+            testList.add(new Point(2.0, 3.0));
+            testList.add(new Point(2.0,2.999));
+            testList.add(new Point(4.0,4.0));
+            sortedList = fog_node_voronoi.sortArray(testList);
+            System.out.println("sortedlist = "+sortedList);
+            List<Point> testList1 = new ArrayList();
+            List<Point> sortedList1 = new ArrayList();
+            testList1.add(new Point(2.0,2.999));
+            testList1.add(new Point(4.0,4.0));
+            testList1.add(new Point(1.0,1.0));
+            testList1.add(new Point(2.0, 3.0));
+            sortedList1 = fog_node_voronoi.sortArray(testList1);
+            System.out.println("First List equals to Second list: " +
+                    sortedList.equals(sortedList1));*/
+            //System.exit(24);
+            //Point host = fog_node_voronoi.getHost(new Point(41.99191752,-87.7983019), fogNodeFileName);
+            List<Point> devicesToBeHosted = new ArrayList<>();
+            ArrayList<Pair<Point, Point>> deviceToBeHosted_Host_PairList = new ArrayList<>();
+            devicesToBeHosted.add(new Point(-87.7983019, 41.99191752));
+            devicesToBeHosted.add(new Point(-87.7483019, 41.99));
+            devicesToBeHosted.add(new Point(-87.7483019, 41.79));
+            devicesToBeHosted.add(new Point(-87.73, 41.89));
+            devicesToBeHosted.add(new Point(-87.68, 41.79));
+            devicesToBeHosted.add(new Point(-87.70, 41.91));
+            devicesToBeHosted.add(new Point(-87.65, 41.91));
+            for(Point devToBeHosted: devicesToBeHosted) {
+                //Point devToBeHosted = ;
+                Point host = fog_node_voronoi.getHostLongLat(devToBeHosted);
+                //System.out.println("host = ("+host.x+","+host.y+")");
+                Point devToBeHostedXY = devToBeHosted.convertLongLatPointToXYCoordinates();
+                Point hostXY = fog_node_voronoi.getHostXY(devToBeHostedXY);
+                //System.out.println("hostXY = ("+hostXY.x+","+hostXY.y+")");
+                //System.exit(25);
+                Point devToBeHostedXYScaled = getScaledPoint(devToBeHostedXY);
+                Point hostXYScaled = getScaledPoint(hostXY);
+                Pair<Point, Point> deviceToBeHosted_Host_Pair = new Pair<>(devToBeHostedXYScaled, hostXYScaled);
+                deviceToBeHosted_Host_PairList.add(deviceToBeHosted_Host_Pair);
+            }
+            //fog_node_voronoi.plot(fogNodePoints, mobileDevicePoints, devToBeHostedXYScaled, hostXYScaled);
+            fog_node_voronoi.plot(fogNodePoints, mobileDevicePoints, deviceToBeHosted_Host_PairList);
         } catch (ParseException | IOException e) {
             e.printStackTrace();
         }
@@ -494,6 +564,47 @@ public class VoronoiPlot extends JPanel {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
+                /*int k_nearest = 1;
+                coordinateProjection(fogNodeFileName, mobileDeviceFileName);
+                ArrayList<Point> testlist = new ArrayList<Point>();
+                HashMap<Point, ArrayList<Point>> rsltsDic = new HashMap<Point, ArrayList<Point>>();
+                for(Point p: fogNodePoints){
+                    testlist.add(new Point(p.x,p.y));
+                }
+                System.out.println("testlist.size() = "+testlist.size());
+                int pointCnt = 0;
+                for(Point p: testlist){
+                    pointCnt++;
+                    System.out.println("testlist points "+pointCnt+": "+p.x+", "+p.y);
+                }
+                //System.exit(99);
+                KDTree tree = new KDTree(testlist);
+                pointCnt = 0;
+                for(Point p: mobileDevicePoints){
+                    ArrayList<Point> knn = tree.KNN(k_nearest,new Point(p.x,p.y));
+
+                    for(Point pk: knn){
+                        pointCnt++;
+                        //System.out.println("knn points "+pointCnt+": "+pk.x+", "+pk.y);
+                    }
+                    rsltsDic.put(p, knn);
+                }
+
+                for(Point p: rsltsDic.keySet()){
+                    System.out.print("Mobile Device "+mobileDeviceDic.get(p)+": Fog Node ");
+
+                    for(Point x: rsltsDic.get(p)){
+                        Point pt = new Point((double)x.x, (double)x.y);
+                        String temp = fogNodesDic.get(pt);
+                        System.out.print(fogNodesDic.get(pt)+' ');
+                    }
+                    System.out.print(" => " + p+": ");
+                    for(Point x: rsltsDic.get(p)){
+                        System.out.print("("+x.x+","+x.y+") ");
+                    }
+                    System.out.println();
+                }*/
+
                 createFogNodePlot(fogNodeFileName, mobileDeviceFileName);
                 //createAndShowGui();
             }
