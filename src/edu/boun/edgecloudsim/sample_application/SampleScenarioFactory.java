@@ -28,6 +28,7 @@ import edu.auburn.pFogSim.orchestrator.LocalOnlyOrchestrator;
 import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
 import edu.auburn.pFogSim.orchestrator.SelectedLevelsOrchestrator;
 import edu.auburn.pFogSim.orchestrator.SelectedNodesOrchestrator;
+import edu.auburn.pFogSim.orchestrator.VoronoiOrchestrator;
 import edu.boun.edgecloudsim.core.ScenarioFactory;
 import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.core.SimSettings.APP_TYPES;
@@ -85,34 +86,39 @@ public class SampleScenarioFactory implements ScenarioFactory {
 	 */
 	@Override
 	public EdgeOrchestrator getEdgeOrchestrator() {
-		if (simScenario.equals("HAFA_ORCHESTRATOR")) { 
-			return new HAFAOrchestrator(orchestratorPolicy, simScenario);
+		if (simScenario == null) return null;
+		switch (simScenario) {
+			case "HAFA_ORCHESTRATOR":
+				return new HAFAOrchestrator(orchestratorPolicy, simScenario);
+
+			case "CENTRALIZED_ORCHESTRATOR":
+				return new CentralOrchestrator(orchestratorPolicy, simScenario);
+
+			case "CLOUD_ONLY":
+				return new CloudOnlyOrchestrator(orchestratorPolicy, simScenario);
+
+			case "EDGE_BY_LATENCY":
+				return new EdgeByLatencyOrchestrator(orchestratorPolicy, simScenario);
+
+			case "EDGE_BY_DISTANCE":
+				return new EdgeByDistanceOrchestrator(orchestratorPolicy, simScenario);
+
+			case "LOCAL_ONLY":
+				return new LocalOnlyOrchestrator(orchestratorPolicy, simScenario);
+
+			case "FIXED_NODE":
+				return new FixedNodeOrchestrator(orchestratorPolicy, simScenario);
+
+			case "SELECTED_NODES":
+				return new SelectedNodesOrchestrator(orchestratorPolicy, simScenario);
+
+			case "SELECTED_LEVELS":
+				return new SelectedLevelsOrchestrator(orchestratorPolicy, simScenario);
+			case "VORONOI":
+				return new VoronoiOrchestrator(orchestratorPolicy, simScenario);
+			default:
+				return null;
 		}
-		else if (simScenario.equals("CENTRALIZED_ORCHESTRATOR")) {
-			return new CentralOrchestrator(orchestratorPolicy, simScenario);
-		}
-		else if (simScenario.equals("CLOUD_ONLY")) {
-			return new CloudOnlyOrchestrator(orchestratorPolicy, simScenario);
-		}
-		else if (simScenario.equals("EDGE_BY_LATENCY")) {
-			return new EdgeByLatencyOrchestrator(orchestratorPolicy, simScenario);
-		}
-		else if (simScenario.equals("EDGE_BY_DISTANCE")) {
-			return new EdgeByDistanceOrchestrator(orchestratorPolicy, simScenario);
-		}
-		else if (simScenario.equals("LOCAL_ONLY")) {
-			return new LocalOnlyOrchestrator(orchestratorPolicy, simScenario);
-		}
-		else if (simScenario.equals("FIXED_NODE")) {
-			return new FixedNodeOrchestrator(orchestratorPolicy, simScenario);
-		}
-		else if (simScenario.equals("SELECTED_NODES")) {
-			return new SelectedNodesOrchestrator(orchestratorPolicy, simScenario);
-		}
-		else if (simScenario.equals("SELECTED_LEVELS")) {
-			return new SelectedLevelsOrchestrator(orchestratorPolicy, simScenario);
-		}
-		return null;
 	}
 
 	
