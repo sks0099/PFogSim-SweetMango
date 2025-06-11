@@ -24,6 +24,7 @@ import static java.lang.Math.max;
 class Algs {
     public static double DummyAlg(ArrayList<Point> points, int granularity)
     {
+        boolean debug = false;
         int mapsize = granularity+1;
         double trate = granularity/50.0;
         int len = points.size();
@@ -101,6 +102,7 @@ public class KDTree{
     static ArrayList<Point> mobileDevicePoints = new ArrayList<Point>();
     static HashMap<Point, String> fogNodesDic = new HashMap<Point, String>();
     static HashMap<Point, String> mobileDeviceDic = new HashMap<Point, String>();
+    boolean debug = false;
 
     public static void coordinateProjection(String fogNodeFileName, String mobileDeviceFileName){
         JSONParser jsonParser = new JSONParser();
@@ -669,21 +671,21 @@ public class KDTree{
         }
 
         for(Point p: rsltsDic.keySet()){
-            System.out.print("Mobile Device "+mobileDeviceDic.get(p)+": Fog Node ");
+            if(debug) System.out.print("Mobile Device "+mobileDeviceDic.get(p)+": Fog Node ");
 
             for(Point x: rsltsDic.get(p)){
                 Point pt = new Point((double)x.x, (double)x.y);
                 String temp = fogNodesDic.get(pt);
-                System.out.print(fogNodesDic.get(pt)+' ');
+                if(debug) System.out.print(fogNodesDic.get(pt)+' ');
             }
             System.out.print(" => " + p+": ");
             for(Point x: rsltsDic.get(p)){
                 //if(p.equals(new Point(0.8452383852704767, -0.0051038269039367))) {
-                System.out.print("(" + x.x + "," + x.y + ") ");
+                if(debug) System.out.print("(" + x.x + "," + x.y + ") ");
                 nearestFogNode = x;
                 //}
             }
-            System.out.println();
+            if(debug) System.out.println();
         }
         return nearestFogNode;
     }
@@ -707,21 +709,21 @@ public class KDTree{
         //}
 
         for(Point p: rsltsDic.keySet()){
-            System.out.print("Mobile Device "+mobileDeviceDic.get(p)+": Fog Node ");
+            if(debug) System.out.print("Mobile Device "+mobileDeviceDic.get(p)+": Fog Node ");
 
             for(Point x: rsltsDic.get(p)){
                 Point pt = new Point((double)x.x, (double)x.y);
                 String temp = fogNodesDic.get(pt);
-                System.out.print(fogNodesDic.get(pt)+' ');
+                if(debug) System.out.print(fogNodesDic.get(pt)+' ');
             }
             System.out.print(" => " + p+": ");
             for(Point x: rsltsDic.get(p)){
                 //if(p.equals(new Point(0.8452383852704767, -0.0051038269039367))) {
-                System.out.print("(" + x.x + "," + x.y + ") ");
+                if(debug) System.out.print("(" + x.x + "," + x.y + ") ");
                 nearestFogNode = x;
                 //}
             }
-            System.out.println();
+            if(debug) System.out.println();
         }
         return nearestFogNode;
     }

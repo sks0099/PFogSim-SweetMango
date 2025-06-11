@@ -227,7 +227,7 @@ public class Voronoi_fog_node {
 
             Voronoi fogNode_mobileDev_voronoi = new Voronoi(fogNodePoints);
             //fog_node_voronoi.plot(fogNodePoints, mobileDevicePoints);
-            fogNode_mobileDev_voronoi.plotSwing(fogNodePoints, mobileDevicePoints);
+            //fogNode_mobileDev_voronoi.plotSwing(fogNodePoints, mobileDevicePoints);
         } catch (ParseException | IOException e) {
             e.printStackTrace();
         }
