@@ -16,7 +16,7 @@ import edu.boun.edgecloudsim.sample_voronoi_app.Point;
 import edu.boun.edgecloudsim.sample_voronoi_app.Voronoi;
 import edu.boun.edgecloudsim.utils.Location;
 
-public class VoronoiOrchestrator extends EdgeOrchestrator {
+public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
 
     /**
      * The Voronoi Object containing the current partition
@@ -25,7 +25,7 @@ public class VoronoiOrchestrator extends EdgeOrchestrator {
 
     Map<Point, EdgeHost> pointToHostMap = new HashMap<Point, EdgeHost>();
 
-    public VoronoiOrchestrator(String _policy, String _simScenario) {
+    public VoronoiSingleLayerOrchestrator(String _policy, String _simScenario) {
             super(_policy, _simScenario);
             //TODO Auto-generated constructor stub
         }
@@ -51,6 +51,11 @@ public class VoronoiOrchestrator extends EdgeOrchestrator {
     @Override
     public void assignHost(MobileDevice mobile) {
         // TODO Auto-generated method stub
+        Location mobileLocation = mobile.getLocation();
+        double mobileLocationX = mobileLocation.getXPos();
+        double mobileLocationY = mobileLocation.getYPos();
+        Point mobilePoint = new Point(mobileLocationX, mobileLocationY);
+        partition.getHostXY(mobilePoint);
         throw new UnsupportedOperationException("Unimplemented method 'assignHost'");
     }
     
