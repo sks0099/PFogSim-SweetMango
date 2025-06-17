@@ -114,7 +114,8 @@ public class SampleScenarioFactory implements ScenarioFactory {
 
 			case "SELECTED_LEVELS":
 				return new SelectedLevelsOrchestrator(orchestratorPolicy, simScenario);
-			case "VORONOI":
+
+			case "SINGLE_LAYER_VORONOI":
 				return new VoronoiSingleLayerOrchestrator(orchestratorPolicy, simScenario);
 			default:
 				return null;
