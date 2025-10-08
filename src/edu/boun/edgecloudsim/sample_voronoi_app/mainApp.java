@@ -76,7 +76,7 @@ public class mainApp {
 
 		DataInterpreter.initialize();
 		try {
-			DataInterpreter.readFile();
+			DataInterpreter.readFile(iterationNumber);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

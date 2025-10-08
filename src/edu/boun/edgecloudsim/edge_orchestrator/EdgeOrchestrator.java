@@ -16,6 +16,7 @@ package edu.boun.edgecloudsim.edge_orchestrator;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
 import edu.boun.edgecloudsim.edge_server.EdgeVM;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 
 import org.cloudbus.cloudsim.Datacenter;
@@ -99,7 +100,7 @@ public abstract class EdgeOrchestrator {
 		//if (host == null)
 			//return false;
 		
-		System.out.print(host.getId()+" ");
+		//System.out.print(host.getId()+" ");
 		if (!host.isMIPSAvailable(mb) || !host.isBWAvailable(mb) || !host.isLatencySatisfactory(mb)) {
 			return false;
 		}
@@ -110,10 +111,32 @@ public abstract class EdgeOrchestrator {
 				return false;
 			}
 		}
-		System.out.println(" is good.");
+		//System.out.println(" is good.");
+        //System.out.println("HostId: "+host.getId()+" is good."); // sks0099 commented on 10/04/2025
 		return true;
 		
 	}
+
+    protected static boolean goodHostWithoutCheckingLatency(EdgeHost host, MobileDevice mb) {
+        //if (host == null)
+        //return false;
+
+        //System.out.print(host.getId()+" ");
+        if (!host.isMIPSAvailable(mb) || !host.isBWAvailable(mb)) {
+            return false;
+        }
+        LinkedList<NodeSim> path = ((ESBModel)SimManager.getInstance().getNetworkModel()).findPath(host, mb);
+        for (NodeSim node: path) {
+            EdgeHost tempHost = SimManager.getInstance().getLocalServerManager().findHostByWlanId(node.getLocation().getServingWlanId());
+            if (!tempHost.isBWAvailable(mb)) {
+                return false;
+            }
+        }
+        //System.out.println(" is good.");
+        //System.out.println("HostId: "+host.getId()+" is good."); // sks0099 commented on 10/04/2025
+        return true;
+
+    }
 	
 	
 	/**
@@ -228,6 +251,9 @@ public abstract class EdgeOrchestrator {
 	 */
 	public int[] getNumPuddlesSearched() { return null; }
 
-	
-	
+	public HashMap<MobileDevice, EdgeHost> getMobileAssignment(){ return null;}
+
+    public int getUnassignedMobileDeviceCount() {	return 0; }
+
+    public double getAverageSearchHops() { return 0; }
 }

@@ -7,6 +7,7 @@ package edu.auburn.pFogSim.netsim;
 
 import edu.auburn.pFogSim.Exceptions.BlackHoleException;
 //import edu.boun.edgecloudsim.utils.SimLogger;
+import edu.boun.edgecloudsim.sample_voronoi_app.Point;
 import edu.boun.edgecloudsim.utils.Location;
 import java.util.LinkedList;
 import java.util.HashMap;
@@ -61,10 +62,16 @@ public class Router {
 			return database.get(route);
 		}*/
 		Dijkstra router = getDijkstra();//getAPathFinder();
-		router._dest = dest; 
-		if (pathFinder.containsKey(src) && pathFinder.get(src).containsKey(dest) && !pathFinder.get(src).get(dest).isEmpty()) {
-			return pathFinder.get(src).get(dest);
-		}
+		router._dest = dest;
+		//if(pathFinder.size() > 0) {// Added by sks0099 on 08/18/25
+			//System.out.println("pathFinder.get(src) = "+pathFinder.get(src));
+			//System.out.println("pathFinder.get(src).get(dest) = "+pathFinder.get(src).get(dest));
+			//if (pathFinder.get(src).get(dest) != null) {// Added by sks0099 on 08/18/25
+				if (pathFinder.containsKey(src) && pathFinder.get(src).containsKey(dest) && !pathFinder.get(src).get(dest).isEmpty()) {
+					return pathFinder.get(src).get(dest);
+				}
+			//}// Added by sks0099 on 08/18/25
+		//}// Added by sks0099 on 08/18/25
 //		if (pathFinder.containsKey(dest) && pathFinder.get(dest).containsKey(src) && !pathFinder.get(dest).get(src).isEmpty()) {
 //			if (!pathFinder.containsKey(src)) {
 //				pathFinder.put(src, new HashMap<>());
@@ -85,10 +92,14 @@ public class Router {
 			if (!pathFinder.containsKey(src)) {
 				pathFinder.put(src, new HashMap<>());
 			}
-			if (!pathFinder.get(src).containsKey(node) || pathFinder.get(src).get(node).isEmpty()) {
-				pathFinder.get(src).put(node, router.getPath(node));
-				router.completed = (HashSet<Pair<NodeSim, Pair<Double, NodeSim>>>) completedCopy.clone();
-			}
+			//if (pathFinder.get(src).get(dest) != null) {// Added by sks0099 on 08/18/25
+				if (!pathFinder.get(src).containsKey(node) || pathFinder.get(src).get(node).isEmpty()) {
+					//if (router.getPath(node) != null) {// Added by sks0099 on 08/18/25
+						pathFinder.get(src).put(node, router.getPath(node));
+						router.completed = (HashSet<Pair<NodeSim, Pair<Double, NodeSim>>>) completedCopy.clone();
+					//}
+				}
+			//}
 //			if (!pathFinder.containsKey(node)) {
 //				pathFinder.put(node, new HashMap<>());
 //			}
@@ -314,9 +325,37 @@ public class Router {
 			NodeSim current;
 			reversed.add(dest);
 			current = dest;
+			Integer reversedSizeStart = 0;
+			Integer reversedSizeCurrent = 0;
+			Integer reversedSizeChange = 0;
 			while (!current.equals(src)) {
+				//System.out.println("current on line 334 in Router.java "+current+" result size = "+result.size()+" reversed size = "+reversed.size());
+				/*if(current.equals(new NodeSim(-87.683703, 41.847261))){
+					System.out.println("here 0");
+				}*/
+				/*if(Math.abs(-87.683703-current.getLocation().getXPos()) < 1.0e-4
+						&& Math.abs(41.847261-current.getLocation().getYPos()) < 1.0e-4){
+					System.out.println("here 0");
+				}*/
+				reversedSizeStart = reversed.size();
 				for (Pair<NodeSim, Pair<Double, NodeSim>> node : completed) {
+					/*if(current.equals("(-87.683703, 41.847261, 0.0)")){
+						System.out.println("here 1");
+					}*/
+					/*if(Math.abs(-87.683703-current.getLocation().getXPos()) < 1.0e-4
+							&& Math.abs(41.847261-current.getLocation().getYPos()) < 1.0e-4){
+						System.out.println("here 1");
+					}*/
+					/*if (Math.abs(node.getKey().getLocation().getXPos()-current.getLocation().getXPos()) < 1.0e-4
+							&& Math.abs(node.getKey().getLocation().getYPos()-current.getLocation().getYPos()) < 1.0e-4) {
+						System.out.println("Before: node.getKey() = " + node.getKey() + " current = " + current);
+					}*/
+					// This next line was commented by sks0099 on 08/17/2025 because the program was running into infinite loop
+					// The subsequent line was added to overcome this issue.
 					if (node.getKey().equals(current)) {
+					//if (Math.abs(node.getKey().getLocation().getXPos()-current.getLocation().getXPos()) < 5.0e-5
+					//&& Math.abs(node.getKey().getLocation().getYPos()-current.getLocation().getYPos()) < 5.0e-5){
+						//System.out.println("node.getKey() = "+node.getKey()+" current = "+current);
 						current = node.getValue().getValue();
 						if (current == null) {
 							throw new BlackHoleException(src, current);
@@ -331,6 +370,12 @@ public class Router {
 						temp = node;
 						break;
 					}
+				}
+				reversedSizeCurrent = reversed.size();
+				reversedSizeChange = reversedSizeCurrent - reversedSizeStart;
+				if(reversedSizeChange == 0){
+					System.out.println("No change in reversed size.");
+					return null;
 				}
 				
 				completed.remove(temp);
@@ -352,7 +397,8 @@ public class Router {
 	 */
 	private class dijkstrasComparator implements Comparator<Pair<NodeSim, Pair<Double, NodeSim>>> {
 		public int compare(Pair<NodeSim, Pair<Double, NodeSim>> x, Pair<NodeSim, Pair<Double, NodeSim>> y) {
-			return (int)((x.getValue().getKey() - y.getValue().getKey()) * 1000);
+			//return (int)((x.getValue().getKey() - y.getValue().getKey()) * 1000); // original
+			return (int)((x.getValue().getKey() - y.getValue().getKey()) * 100000); // modified by sks0099 on 08/19/25 to solve infinte loop issue
 		}		
 	}
 	

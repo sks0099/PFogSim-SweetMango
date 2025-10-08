@@ -15,6 +15,12 @@ function [] = plotAllPlots()
     config = configuration;
     % config.IterationCount = 1;
     % config.FolderPath = "<insert custom file path here>"; % To use a non-default folder, uncomment this line with your folder path.
+    isNumberOfMobileDevicesBetween100And600 = 0
+    if(isNumberOfMobileDevicesBetween100And600 == 0)
+        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results"
+    else
+        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600"
+    end
     config = config.finishConfig();
     % Use the following lines to manually adjust configuration details if needed.
     config.ColorPlot = 1;
@@ -27,8 +33,14 @@ function [] = plotAllPlots()
 
     % The output PDF file will be named according to the date and time.
     % This will keep it unique for each run.
-    figName = strcat(config.FolderPath, filesep, string(datetime('now', 'Format', 'yyyy-MM-dd_HH-mm-ss')), '.pdf');
-
+    %figName = strcat(config.FolderPath, filesep, string(datetime('now', 'Format', 'yyyy-MM-dd_HH-mm-ss')), '.pdf');
+    % Added by sks0099 on 20241126 - Begin
+    dt = datestr(now,'yyyy-mm-dd_HH-MM-ss') 
+    %disp(dt)
+    if ~exist(strcat(config.FolderPath,'\plots'), 'dir')
+       mkdir(strcat(config.FolderPath,'\plots'))
+    end
+    figName = strcat(config.FolderPath, '\plots', filesep, dt, '.pdf'); %modified by sks0099 on 20241126
     for i=1:length(config.AppTypes)
         appType = config.AppTypes(i);
         appendPlot(plotGenericResult(1, 2, 'Failed Tasks (%)', appType, 1, config), figName);
@@ -56,6 +68,8 @@ function [] = plotAllPlots()
 % 		appendPlot(plotGenericResult(10,2, 'Dynamic Network Energy', appType, 0, config, '', 'linear'), figName);
 % 		appendPlot(plotGenericResult(10,3, 'Dynamic Fog Node Energy', appType, 0, config, '', 'linear'), figName);
     end
+    % Next line opens the pdf file just generated
+    open(figName);
 end
 
 function [] = appendPlot(figurePlot, figureName)
@@ -67,5 +81,11 @@ function [] = appendPlot(figurePlot, figureName)
     else
         exportgraphics(figurePlot, figureName, 'ContentType', 'vector');
     end
-    close(figurePlot);
+    %openfig(figurePlot);
+    %set(figurePlot, 'visible', 'on');
+    %openfig(figurePlot,'new','visible');
+    close(figurePlot); 
+    
+    
+    %close(figurePlot);
 end

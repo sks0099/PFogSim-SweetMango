@@ -6,6 +6,10 @@
 
 package edu.auburn.pFogSim.netsim;
 
+import edu.boun.edgecloudsim.edge_server.EdgeServerManager;
+import edu.boun.edgecloudsim.sample_voronoi_app.Point;
+import edu.boun.edgecloudsim.sample_voronoi_app.Voronoi;
+import org.apache.commons.collections4.BidiMap;
 import org.cloudbus.cloudsim.core.CloudSim;
 
 import edu.auburn.pFogSim.Exceptions.BlackHoleException;
@@ -41,6 +45,7 @@ public class ESBModel extends NetworkModel {
 	private NetworkTopology networkTopology;
 	private static ESBModel instance = null;
 	private Router router;
+    private boolean isNetworkTopologySet = false;
 	
 	
 	/**
@@ -177,6 +182,9 @@ public class ESBModel extends NetworkModel {
 		if (SimSettings.getInstance().traceEnable()) {
 			SimLogger.printLine("**********Task Delay**********");
 			SimLogger.printLine("Start node ID:\t" + src.getWlanId());
+			if (SimSettings.getInstance().traceEnable()) {
+				SimLogger.printLine("delay:\t" + delay);
+			}
 		}
 		while (!path.isEmpty()) {
 			current = path.poll();
@@ -192,7 +200,7 @@ public class ESBModel extends NetworkModel {
 			double conDelay = getWlanUploadDelay(nextHop.getLocation(), dataSize, CloudSim.clock() + delay); // Time required to send (dataSize) KB through the (nextHop) location.
 			delay += (proDelay + conDelay + SimSettings.ROUTER_PROCESSING_DELAY);
 			if (SimSettings.getInstance().traceEnable()) {
-				SimLogger.printLine("Path node:\t" + current.getWlanId() + "\tPropagation Delay:\t" + proDelay +"\tCongestion delay:\t" + conDelay + "\tTotal accumulative delay:\t" + delay);
+				SimLogger.printLine("Path node:\t" + current.getWlanId() + "\tPropagation Delay:\t" + proDelay +"\tCongestion delay:\t" + conDelay + "\tCumulative delay:\t" + delay);
 			}
 		}
 		if (SimSettings.getInstance().traceEnable()) {
@@ -293,7 +301,10 @@ public class ESBModel extends NetworkModel {
 			// the bandwidth should be 100M
 			bandwidth = 819200; 
 
-			System.out.println("\n" + loc + "\n" + "bandwidth updated: " + bandwidth);
+			//System.out.println("\n" + loc + "\n" + "bandwidth updated: " + bandwidth);
+			// Modified by sks0099 on 09/05/2025 for mmore clarity
+			// Following line commented by sks0099 on 09/09/2025.
+			//System.out.println("loc:" + loc + " - " + "bandwidth updated due to closeness: " + bandwidth);
 		}
 		// calculate data transfer time at network node
 		//double transferTime = dataSize * 8 / loc.getBW(); 
@@ -323,6 +334,7 @@ public class ESBModel extends NetworkModel {
 	 */
 	public void setNetworkTopology(NetworkTopology _networkTopology) {
 		networkTopology = _networkTopology;
+        isNetworkTopologySet = true;
 	}
 	
 	
@@ -334,6 +346,13 @@ public class ESBModel extends NetworkModel {
 		return networkTopology;
 	}
 
+    /*
+    It returns whether network topology is already set or not
+
+     */
+    public boolean isNetworkTopologySet() {
+        return isNetworkTopologySet;
+    }
 	
 	/**
 	 * 
@@ -550,6 +569,49 @@ public class ESBModel extends NetworkModel {
 		return delay;
 	}
 
+	public double getCostPerSecDiff(MobileDevice one, EdgeHost two) {
+		double costPerSecDiff = 0;
+		//Point pOne = new Point(one.getXPos(), one.getYPos());
+		//Point pTwo = new Point(two.getXPos(), two.getYPos());
+		NodeSim src;
+		NodeSim dest;
+		NodeSim current;
+		NodeSim nextHop;
+		LinkedList<NodeSim> path = null;
+		//src = networkTopology.findNode(one, false);
+		//dest = networkTopology.findNode(two, false);
+		EdgeServerManager esm = new EdgeServerManager();
+		Voronoi myPartition = new Voronoi();
+
+		//Integer hostIdOne = esm.hostId_Location.getKey(myPartition.getNearestHost(one));
+		//Integer hostIdTwo = esm.hostId_Location.getKey(pTwo);
+		EdgeHost EHOne = myPartition.getNearestHost(one);//esm.hostId_EdgeHost.get(hostIdOne);
+		EdgeHost EHTwo = two;//esm.hostId_EdgeHost.get(hostIdTwo);
+		costPerSecDiff = EHOne.getCostPerSec() - EHTwo.getCostPerSec();
+		return costPerSecDiff;
+	}
+
+	public double getMIPSDiff(MobileDevice one, EdgeHost two) {
+		Double mipsDiff = 0.0;
+		//Point pOne = new Point(one.getXPos(), one.getYPos());
+		//Point pTwo = new Point(two.getXPos(), two.getYPos());
+		NodeSim src;
+		NodeSim dest;
+		NodeSim current;
+		NodeSim nextHop;
+		LinkedList<NodeSim> path = null;
+		//src = networkTopology.findNode(one, false);
+		//dest = networkTopology.findNode(two, false);
+		EdgeServerManager esm = new EdgeServerManager();
+		Voronoi myPartition = new Voronoi();
+
+		//Integer hostIdOne = esm.hostId_Location.getKey(myPartition.getNearestHost(one));
+		//Integer hostIdTwo = esm.hostId_Location.getKey(pTwo);
+		EdgeHost EHOne = myPartition.getNearestHost(one);//esm.hostId_EdgeHost.get(hostIdOne);
+		EdgeHost EHTwo = two;//esm.hostId_EdgeHost.get(hostIdTwo);
+		mipsDiff = Double.valueOf(EHOne.getTotalMips() - EHTwo.getTotalMips());
+		return mipsDiff;
+	}
 	
 	/**
 	 * @return the wlanPoissonMean

@@ -23,9 +23,13 @@ classdef configuration
         IncludeErrorBars {mustBeInteger} = -1   % Default to -1 to differentiate defaults from manual settings.
         ColorPlot {mustBeInteger} = -1          % Default to -1 to differentiate defaults from manual settings.
         XAxisStep {mustBePositive} = 1
-        LineColors {mustBeFloat} = [0.8 0 0;0 0.15 0.6;0 0.23 0;0.6 0 0.6;0.08 0.08 0.08;0 0.8 0.8;0.8 0.4 0;0.8 0.8 0]
-        LineStyleMono {mustBeText} = {'-k*','-ko','-ks','-kv','-kp','-kd','-kx','-kh'}
-        LineStyleColor {mustBeText} = {':k*',':ko',':ks',':kv',':kp',':kd',':kx',':kh'}
+        %LineColors {mustBeFloat} = [0.8 0 0;0 0.15 0.6;0 0.23 0;0.6 0 0.6;0.08 0.08 0.08;0 0.8 0.8;0.8 0.4 0;0.8 0.8 0]
+        LineColors {mustBeFloat} = [0.8 0 0;0 0.15 0.6;0 0.23 0;0.6 0 0.6;0.08 0.08 0.08;0 0.8 0.8;0.8 0.4 0;0.8 0.8 0;0.1 0.5 0.7;1.0 0 0]
+        %LineStyleMono {mustBeText} = {'-k*','-ko','-ks','-kv','-kp','-kd','-kx','-kh'}
+        LineStyleMono {mustBeText} = {'-k*','-ko','-ks','-kv','-kp','-kd','-kx','-kh', '-k^', '-khexagram'}
+        %LineStyleColor {mustBeText} = {':k*',':ko',':ks',':kv',':kp',':kd',':kx',':kh'}
+        LineStyleColor {mustBeText} = {':k*',':ko',':ks',':kv',':kp','-kd',':kx',':kh',':k^','-khexagram'}
+        %LineStyleOrder = {'-.','--','--','--','--','--','--','--','--','-'}
     end
     
     methods(Static)

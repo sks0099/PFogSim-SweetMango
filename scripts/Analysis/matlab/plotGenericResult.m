@@ -14,6 +14,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
     scenarioType = config.SimulationScenarioList;
     startOfMobileDeviceLoop = config.MinimumMobileDevices;
     stepOfMobileDeviceLoop = config.MobileDeviceStep;
+    %endOfMobileDeviceLoop = 500; %config.MaximumMobileDevices;
     endOfMobileDeviceLoop = config.MaximumMobileDevices;
     numOfMobileDevices = (endOfMobileDeviceLoop - startOfMobileDeviceLoop)/stepOfMobileDeviceLoop + 1;
 
@@ -24,26 +25,62 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
     if ~exist('appType','var')
         appType = 'ALL_APPS';
     end
+
+    % Get contents of the target directory
+    dir_contents = dir(folderPath);
+    
+    % Initialize counter for matching folders
+    count_matching_folders = 0;
+    
+    search_string = 'ite';
+    % Loop through each item in the directory contents
+    for i = 1:length(dir_contents)
+        item = dir_contents(i);
+        
+        % Check if the item is a directory and not '.' or '..'
+        if item.isdir && ~strcmp(item.name, '.') && ~strcmp(item.name, '..')
+            % Check if the folder name contains the search string
+            if contains(item.name, search_string)
+                count_matching_folders = count_matching_folders + 1;
+            end
+        end
+    end
     
     for s=1:numOfSimulations
         for i=1:size(scenarioType,1)
+        %for i=1:count_matching_folders
             for j=1:numOfMobileDevices
                 mobileDeviceNumber = startOfMobileDeviceLoop + stepOfMobileDeviceLoop * (j-1);
+                %disp(scenarioType)
+                %disp(scenarioType(2))
+                %disp(strcat('**/*SIMRESULT_*',char(scenarioType(i)),'*_NEXT_FIT_*',int2str(mobileDeviceNumber),'*DEVICES_*',appType,'*_GENERIC.log'))
+                %fileName = strcat('**/*SIMRESULT_*',char(scenarioType(i)),'*_NEXT_FIT_*',int2str(mobileDeviceNumber),'*DEVICES_*',appType,'*_GENERIC.log');
                 fileName = strcat('**/*SIMRESULT_*',char(scenarioType(i)),'*_NEXT_FIT_*',int2str(mobileDeviceNumber),'*DEVICES_*',appType,'*_GENERIC.log');
-                oldFolder = cd(folderPath);
-                allFiles = dir(fileName);
-                cd(oldFolder);
-                if s>length(allFiles)
-                    error(strcat('Error: SIMRESULT files missing. Iterations expected: ', numOfSimulations, '. Iterations found: ', length(allFiles), '.'))
-                end
-                filePath = strcat(allFiles(s).folder, '/', allFiles(s).name);
-                fileData = readmatrix(filePath, 'Delimiter', ';','Range', rowOfset+1);
-                value = fileData(1,columnOfset);
-                if(calculatePercentage==1)
-                    totalTask = fileData(1,1)+fileData(1,2);
-                    value = (100 * value) / totalTask;
-                end
-                all_results(i,j,s) = value;
+                %if exist(fileName, 'file')
+                    oldFolder = cd(folderPath);
+                    allFiles = dir(fileName);
+                    % Print the names of the files
+                    %for k = 1:length(allFiles)
+                        %disp(fullfile(allFiles(k).folder, allFiles(k).name)); % Prints full path
+                        % disp(fileList(i).name); % For just the file name
+                    %end
+                    cd(oldFolder);
+                    %disp(['s: ',s])
+                    %fprintf('s: %d, length(allFiles): %d\n', s, length(allFiles));
+                    if s>length(allFiles)
+                        %disp(['no. of iterations expected: ',numOfSimulations])
+                        %disp(['Iterations found = ', length(allFiles)])
+                        error(strcat('Error: SIMRESULT files missing. Iterations expected: ', int2str(numOfSimulations), '. Iterations found: ', int2str(length(allFiles)), '.'))
+                    end
+                    filePath = strcat(allFiles(s).folder, '/', allFiles(s).name);
+                    fileData = readmatrix(filePath, 'Delimiter', ';','Range', rowOfset+1);
+                    value = fileData(1,columnOfset);
+                    if(calculatePercentage==1)
+                        totalTask = fileData(1,1)+fileData(1,2);
+                        value = (100 * value) / totalTask;
+                    end
+                    all_results(i,j,s) = value;  
+                %end
             end
         end
     end
@@ -83,12 +120,15 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
     end
     
     
-    hFig = figure;
+    %hFig = figure;
+    hFig = figure('Visible','off');
     set(hFig, 'Position', config.PlotWindowCoordinates);
     set(0,'DefaultAxesFontName','Times New Roman');
     set(0,'DefaultTextFontName','Times New Roman');
     set(0,'DefaultAxesFontSize',12);
     set(0,'DefaultTextFontSize',12);
+    %set(0,'DefaultFigureVisible','off');
+    %LineStyleOrder = {'-.','--','--','--','--','--','--','--','--','-'};
     if(config.ColorPlot == 1)
         for i=stepOfxAxis:stepOfxAxis:numOfMobileDevices
             xIndex=startOfMobileDeviceLoop+((i-1)*stepOfMobileDeviceLoop);
@@ -101,7 +141,11 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
                 if strcmp(yScale,'log')
                     semilogy(xIndex, max(1, results(j,i)),char(markers(j)),'MarkerEdgeColor',config.LineColors(j,:),'color',config.LineColors(j,:));  
                 elseif strcmp(yScale,'linear')  
+                    %plot(xIndex, results(j,i),char(markers(j)),'MarkerFaceColor',config.LineColors(j,:),'color',config.LineColors(j,:));
                     plot(xIndex, results(j,i),char(markers(j)),'MarkerFaceColor',config.LineColors(j,:),'color',config.LineColors(j,:));
+                    %'LineStyleOrder',
+                    %linestyles = ["-","-o","--d"];
+                    %linestyleorder(LineStyleOrder);
                 end
                 hold on;
             end
@@ -111,12 +155,19 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
             if(config.IncludeErrorBars == 1)
                 errorbar(types, results(j,:), min_results(j,:),max_results(j,:),':k','color',config.LineColors(j,:),'LineWidth',1.5);
             else
-                plot(types, results(j,:),':k','color',config.LineColors(j,:),'LineWidth',1.5);
+                %plot(types, results(j,:),':k','color',config.LineColors(j,:),'LineWidth',1.5);
+                if(j==6 || j==10)
+                    plot(types, results(j,:),'-k','color',config.LineColors(j,:),'LineWidth',1.5);
+                else
+                    plot(types, results(j,:),':k','color',config.LineColors(j,:),'LineWidth',1.5);
+                end
+                %linestyleorder(LineStyleOrder);
             end
             hold on;
         end
     else
         markers = config.LineStyleMono;
+        %linestyleorder(LineStyleOrder);
         for j=1:size(scenarioType,1)
             if(config.IncludeErrorBars == 1 && config.IterationCount > 1)
                 errorbar(types, results(j,:),min_results(j,:),max_results(j,:),char(markers(j)),'MarkerFaceColor','w','LineWidth',1.4);
@@ -125,6 +176,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
                     semilogy(types, max(1, results(j,:)), char(markers(j)), 'MarkerFaceColor', 'w', 'LineWidth', 1.4);
                 else
                     plot(types, results(j,:),char(markers(j)),'MarkerFaceColor','w','LineWidth',1.4);
+                    %linestyleorder(LineStyleOrder);
                 end
             end
             hold on;
@@ -151,4 +203,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
     title(graphTitle, 'FontSize', 12);
     annotation('rectangle',[0 0 1 1],'Color','w');
     plotOutput = hFig;
+    %set(0,'DefaultFigureVisible','on');
+    %figure('Visible','on');     
+    %set(hFig, 'visible', 'on');
 end

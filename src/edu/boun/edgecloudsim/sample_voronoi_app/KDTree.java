@@ -678,7 +678,7 @@ public class KDTree{
                 String temp = fogNodesDic.get(pt);
                 if(debug) System.out.print(fogNodesDic.get(pt)+' ');
             }
-            System.out.print(" => " + p+": ");
+            if(debug) System.out.print(" => " + p+": ");
             for(Point x: rsltsDic.get(p)){
                 //if(p.equals(new Point(0.8452383852704767, -0.0051038269039367))) {
                 if(debug) System.out.print("(" + x.x + "," + x.y + ") ");
@@ -706,6 +706,44 @@ public class KDTree{
         //for(Point p: mobileDevicePoints){
         ArrayList<Point> knn = tree.KNN(k_nearest,new Point(devicePoint.x,devicePoint.y));
         rsltsDic.put(devicePoint, knn);
+        //}
+
+        for(Point p: rsltsDic.keySet()){
+            if(debug) System.out.print("Mobile Device "+mobileDeviceDic.get(p)+": Fog Node ");
+
+            for(Point x: rsltsDic.get(p)){
+                Point pt = new Point((double)x.x, (double)x.y);
+                String temp = fogNodesDic.get(pt);
+                if(debug) System.out.print(fogNodesDic.get(pt)+' ');
+            }
+            System.out.print(" => " + p+": ");
+            for(Point x: rsltsDic.get(p)){
+                //if(p.equals(new Point(0.8452383852704767, -0.0051038269039367))) {
+                if(debug) System.out.print("(" + x.x + "," + x.y + ") ");
+                nearestFogNode = x;
+                //}
+            }
+            if(debug) System.out.println();
+        }
+        return nearestFogNode;
+    }
+
+    public Point getNearestFogNodeUsingXY(List<Point> fogNodeXY, Point devicePointXY){
+        Point nearestFogNode = new Point();
+        int k_nearest = 1;
+        //coordinateProjection(fogNodeFileName, mobileDeviceFileName);
+        //coordinateProjection(fogNodeFileName, givenPoint);
+        ArrayList<Point> testlist = new ArrayList<Point>();
+        HashMap<Point, ArrayList<Point>> rsltsDic = new HashMap<Point, ArrayList<Point>>();
+
+        for(Point p: fogNodeXY){
+            testlist.add(new Point(p.x,p.y));
+        }
+        KDTree tree = new KDTree(testlist);
+
+        //for(Point p: mobileDevicePoints){
+        ArrayList<Point> knn = tree.KNN(k_nearest,new Point(devicePointXY.x,devicePointXY.y));
+        rsltsDic.put(devicePointXY, knn);
         //}
 
         for(Point p: rsltsDic.keySet()){

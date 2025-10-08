@@ -53,7 +53,7 @@ public class EdgeHost extends Host {
 	private double reserveBW;//Qian: added for service replacement
 	private long reserveMips;//Qian: added for service replacement
 	private ArrayList<MobileDevice> customers;//Qian: added for service replacement 
-	
+	private int searchHop;// sks0099 added for assessing search performance of an orchestrator
 	
 	/**
 	 * 
@@ -96,6 +96,7 @@ public class EdgeHost extends Host {
 		this.reserveBW = 0;
 		this.reserveMips = 0;
 		this.customers = new ArrayList<>();
+        this.searchHop = 0;
 	}
 	
 	
@@ -369,10 +370,14 @@ public class EdgeHost extends Host {
 	 *	@return
 	 */
 	public void  makeReservation(MobileDevice mb) {
-		Log.print("Before Reservation: Host Id: "+this.getId()+" Prev Reserved Mips: "+this.getReserveMips()+" Prev Reserved BW: "+this.getReserveBW()); 
+		Log.print("Before Reservation: Host Id: "+this.getId()+" Prev Reserved Mips: "+this.getReserveMips()+" Prev Reserved BW: "+this.getReserveBW());
+		//System.out.println("Before Reservation: Host Id: "+this.getId()+
+		//		" Prev Reserved Mips: "+this.getReserveMips()+" Available MIPS: "+this.getAvailableMips()+" Prev Reserved BW: "+this.getReserveBW());
 		reserveBW(mb);
 		reserveCPUResource(mb);
 		Log.print(" After Reservation: Host Id: "+this.getId()+" Current Reserved Mips: "+this.getReserveMips()+" Current Reserved BW: "+this.getReserveBW());
+		//System.out.println(" After Reservation: Host Id: "+this.getId()+" Current Reserved Mips: "+
+		//		this.getReserveMips()+" Available MIPS: "+this.getAvailableMips()+" Current Reserved BW: "+this.getReserveBW());
 		customers.add(mb);
 		SimLogger.printLine("  Mobile device: "+mb.getId()+"  WAP: "+mb.getLocation().getServingWlanId()+"  Assigned host: "+this.getId());
 		Log.printLine();
@@ -498,4 +503,12 @@ public class EdgeHost extends Host {
 	public double getFnNwUtilization() {
 		return (reserveBW * ONE_HUNDRED_PERCENT / this.getBw());
 	}
+
+    public void setSearchHop(int _searchHop) {
+        this.searchHop = _searchHop;
+    }
+
+    public int getSearchHop(){
+        return this.searchHop;
+    }
 }

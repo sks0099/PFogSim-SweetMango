@@ -53,8 +53,8 @@ function [ret_val] = getConfiguration(argType)
     elseif(argType == 28)
         ret_val=[0.8 0.8 0]; %color of eighth line
     elseif(argType == 40)
-        ret_val={'-k*','-ko','-ks','-kv','-kp','-kd','-kx','-kh'}; %line style (marker) of the colerless line
+        ret_val={'-k*','-ko','-ks','-kv','-kp','-kd','-kx','-kh'}; %line style (marker) of the colorless line
     elseif(argType == 50)
-        ret_val={':k*',':ko',':ks',':kv',':kp',':kd',':kx',':kh'}; %line style (marker) of the colerfull line
+        ret_val={':k*',':ko',':ks',':kv',':kp',':kd',':kx',':kh'}; %line style (marker) of the colorful line
     end
 end

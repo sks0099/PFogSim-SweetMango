@@ -56,7 +56,7 @@ public class SampleScenarioFactory implements ScenarioFactory {
 	
 	/**
 	 * 
-	 * @param _numOfMobileDevice
+	 * @param _numOfMobileDevice - number of mobile/IoT devices
 	 * @param _simulationTime
 	 * @param _orchestratorPolicy
 	 * @param _simScenario

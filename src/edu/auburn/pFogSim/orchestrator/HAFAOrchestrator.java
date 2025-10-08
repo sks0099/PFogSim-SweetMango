@@ -11,7 +11,9 @@ package edu.auburn.pFogSim.orchestrator;
  * that needs to be changed is the metric upon which we sort and select nodes. See DistRadix for more info.
  * 
  */
+import edu.auburn.pFogSim.util.DataInterpreter;
 import edu.boun.edgecloudsim.core.SimManager;
+import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.edge_orchestrator.EdgeOrchestrator;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
 import edu.auburn.pFogSim.netsim.NodeSim;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import edu.boun.edgecloudsim.utils.SimLogger;
 import org.cloudbus.cloudsim.Datacenter;
 
 
@@ -46,6 +49,8 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	ArrayList<EdgeHost> allHosts;
 	HashMap<NodeSim,HashMap<NodeSim, LinkedList<NodeSim>>> pathTable;
 	ESBModel networkModel;
+	// The following was added by sks0099 on 09/13/2025 for testing
+	HashMap<MobileDevice, EdgeHost> mobileHostAssignment = new HashMap<>();
 	
 	// To capture HAFA metrics
 	public int[] numProspectiveHosts;
@@ -438,11 +443,28 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 			mobile.setHost(selHost);
 			mobile.makeReservation();
 			System.out.println("  Assigned host: " + selHost.getId());
+			// Following line added by sks0099 on 09/13/2025
+			mobileHostAssignment.put(mobile, selHost);
+			// Following line added by sks0099 on 09/13/2025
+			System.out.println("Before reservation: "+selHost.getTotalMips()+", "+selHost.getAvailableMips()+", "+selHost.getReserveMips());
+			double distanceBetweenMobileAndHost = DataInterpreter.measure(mobile.getLocation().getYPos(), mobile.getLocation().getXPos(),
+					selHost.getLocation().getYPos(), selHost.getLocation().getXPos());
+			if (SimSettings.getInstance().traceEnable()) {
+				SimLogger.printLine("Distance from mobile to the host is: "+
+						distanceBetweenMobileAndHost +" m");
+				SimLogger.printLine("Mobile location is: ("+mobile.getLocation().getXPos()+","+mobile.getLocation().getYPos()+")");
+				SimLogger.printLine("Host location is: ("+selHost.getLocation().getXPos()+","+selHost.getLocation().getYPos()+")");
+			}
 		}
 		else
 			System.out.println("  Mobile device: "+mobile.getId()+"  WAP: "+mobile.getLocation().getServingWlanId()+"  Assigned host:  NULL");
 
 		return;
-	}	
+	}
+
+	// Following method added by sks0099 on 09/13/2025 for testing
+	public HashMap<MobileDevice, EdgeHost> getMobileAssignment(){
+		return mobileHostAssignment;
+	}
 	
 }// end class HAFAOrchestrator

@@ -24,8 +24,8 @@ public class MobileDevice {
 	private int desMobileUser;
 	private EdgeHost host = null;
 	private SimLogger.TASK_STATUS assignHostStatus;
-	
-	
+
+
 	/**
 	 * @return the assignHostStatus
 	 */

@@ -19,11 +19,8 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.cloudbus.cloudsim.DatacenterBroker;
-import org.cloudbus.cloudsim.Log;
+import org.cloudbus.cloudsim.*;
 //import org.cloudbus.cloudsim.Cloudlet;
-import org.cloudbus.cloudsim.UtilizationModel;
-import org.cloudbus.cloudsim.UtilizationModelFull;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
@@ -123,6 +120,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 			 * Since all of these arguments (except 'sepa') are specific to the 'task' object, 
 			 * should these functions simply accept a Task instead? - Roy Harmon
 			*/
+            // Following 2 lines were commented by sks0099 on 20250921 to reduce execution time but of no avail. Hence, uncommented.
 			SimLogger.getInstance().addHops(task.getCloudletId(), ((ESBModel) networkModel).getHops(task, task.getAssociatedHostId()));
 			SimLogger.getInstance().addHopsBack(task.getCloudletId(), ((ESBModel) networkModel).getHopsBack(task, task.getAssociatedHostId(), sepa));
 			/*if (((ESBModel) networkModel).getHops(task, task.getAssociatedHostId()) == 0) {
@@ -322,8 +320,18 @@ public class MobileDeviceManager extends DatacenterBroker {
 					SimLogger.getInstance().taskRejected(task.getCloudletId(), CloudSim.clock(), SimLogger.TASK_STATUS.REJECTED_DUE_TO_UNACCEPTABLE_LATENCY ); // Shaik added
 					//System.out.println("submitTask: Task: "+task.getCloudletId()+"  Assigned Host: "+task.getAssociatedHostId()+" - task rejected due to unacceptable latency.");
 					
-					if (SimSettings.getInstance().traceEnable()) {
-						SimLogger.printLine("submitTask: Task: "+task.getCloudletId()+"  Assigned Host: "+task.getAssociatedHostId()+" - task rejected due to unacceptable latency.");
+					if (SimSettings.getInstance().traceEnable() && task.getSubmissionTime() > SimSettings.getInstance().getWarmUpPeriod()) {
+						//SimLogger.printLine("submitTask: Task: "+task.getCloudletId()+"  Assigned Host: "+task.getAssociatedHostId()+" Perceived Delay: "+taskPerceivedDelay+" - task rejected due to unacceptable latency.");
+						SimLogger.printLine("submitTask: Task: "+task.getCloudletId()+" Mobile Device Id: "+task.getMobileDeviceId()+"  Assigned Host Id: "+task.getAssociatedHostId()+" Perceived Delay: "+taskPerceivedDelay+" - task rejected due to unacceptable latency."); // modified by sks0099 on 20250830
+						//Following 4 lines added by sks0099 on 09112025
+						SimLogger.printLine("Investigation of reasons: "); // added by sks0099 on 20250911
+						EdgeHost eh = SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId());
+						SimLogger.printLine("Task type: "+task.getTaskType()+" Task length: "+task.getCloudletLength()+"  Assigned Host's Available MIPS: "+eh.getAvailableMips()+"  Assigned Host's Total MIPS: "+eh.getTotalMips()+"  Assigned Host's Reserved MIPS: "+eh.getReserveMips());
+						SimLogger.printLine("Host location: "+hostLoc+" Mobile location: "+devLoc);
+						SimLogger.printLine("Host distance: "+hostDistance+" Consumer distance: "+consumerDistance);
+						SimLogger.printLine("Network delay: "+((ESBModel)SimManager.getInstance().getNetworkModel()).getDelay(devLoc, hostLoc));
+						SimLogger.printLine("\n");
+						//break;
 					}
 				}
 	

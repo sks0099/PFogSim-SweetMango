@@ -7,11 +7,18 @@ public class Point implements Comparable <Point>{
 
     double x; //x means x coordinate or longitude
     double y; //y means y coordinate or latitude
+    double z; //z means z coordinate or altitude
     double epsilon = 1.0e-4;
 
     public Point (double x0, double y0) {
         x = x0;
         y = y0;
+    }
+
+    public Point (double x0, double y0, double z0) {
+        x = x0;
+        y = y0;
+        z = z0;
     }
 
     public Point(){
@@ -31,6 +38,15 @@ public class Point implements Comparable <Point>{
         double y_coord = R * Math.cos(Math.PI * latitude / 180.0) * Math.sin(Math.PI * longitude / 180.0);
         return new Point(x_coord,y_coord);
     }
+
+    /*public Point convertXYPointToLongLatCoordinates(){ //first index is x, second index is y of catesian coordinates
+        double R = 6378137.0; //in meter at equator
+        double latitude = y;
+        double longitude = x;
+        double x_coord = R * Math.cos(Math.PI * latitude / 180.0) * Math.cos(Math.PI * longitude / 180.0);
+        double y_coord = R * Math.cos(Math.PI * latitude / 180.0) * Math.sin(Math.PI * longitude / 180.0);
+        return new Point(x_coord,y_coord);
+    }*/
 
     public int compareTo (Point other) {
         if (this.y == other.y) {
@@ -57,6 +73,18 @@ public class Point implements Comparable <Point>{
             return false;
         }
         //return x == point.x && y == point.y;
+    }
+
+    public double getX(){
+        return x;
+    }
+
+    public double getY(){
+        return y;
+    }
+
+    public double getZ(){
+        return z;
     }
 
     @Override

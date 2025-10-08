@@ -2,7 +2,13 @@ package edu.boun.edgecloudsim.sample_voronoi_app;
 
 //import javafx.util.Pair;
 
+import edu.auburn.pFogSim.util.MobileDevice;
+import edu.boun.edgecloudsim.core.SimSettings;
+import edu.boun.edgecloudsim.edge_orchestrator.EdgeOrchestrator;
+import edu.boun.edgecloudsim.edge_server.EdgeHost;
+import edu.boun.edgecloudsim.edge_server.EdgeServerManager;
 import org.apache.commons.math3.util.Pair;
+import org.cloudbus.cloudsim.Datacenter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -20,10 +26,18 @@ import java.util.*;
 import static edu.boun.edgecloudsim.sample_voronoi_app.KDTree.*;
 import static edu.boun.edgecloudsim.sample_voronoi_app.KDTree.fogNodesDic;
 
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.DocumentBuilder;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import java.io.File;
+
 public class Voronoi {
     boolean debug = false;
 
-    private List <Point> sites;
+    private List <Point> sites = new ArrayList<Point>();
     public List <Edge> edges; // edges on Voronoi diagram
     PriorityQueue<Event> events; // priority queue represents sweep line
     Parabola root; // binary search tree represents beach line
@@ -32,6 +46,7 @@ public class Voronoi {
     public HashMap<Point, List<Point>> VoronoiPartitionVertexMap = new HashMap<>();
     public HashMap<Point, List<Pair<Point, Point>>> VoronoiPartitionEdgeMap = new HashMap<>();
     private HashMap<Point, List<Point>> VoronoiNeighborSiteMap = new HashMap<>();
+    private HashMap<Point, List<Point>> VoronoiNeighborSiteMapXY = new HashMap<>();
     public ArrayList<Point> fogNodesLongLat = new ArrayList<>();
     public ArrayList<Point> sortedFogNodesLongLat = new ArrayList<>();
     public ArrayList<Point> fogNodesXY = new ArrayList<>();
@@ -39,8 +54,7 @@ public class Voronoi {
     private ArrayList<Point> mobileDevicePoints = new ArrayList<Point>();
     private HashMap<Point, String> fogNodesDic = new HashMap<Point, String>();
     private HashMap<Point, String> mobileDeviceDic = new HashMap<Point, String>();
-
-
+    private EdgeServerManager esm = new EdgeServerManager();
     // size of StdDraw window
     double width = 1; //Original
     //double width = -100;
@@ -53,6 +67,74 @@ public class Voronoi {
 
     boolean showPartitionVertexLabel = true;//false;
     boolean showPartitionEdgeLabel = false;//true;//false;
+
+    public Voronoi(){
+        initialize();
+    }
+
+    private void initialize(){
+        //Read node_test.xml file and generate voronoi partition based on the node locations
+        try {
+            File xmlFile = new File("node_test.xml"); // Replace with your XML file path
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(xmlFile);
+
+            // Optional: normalize the document to remove empty text nodes
+            doc.getDocumentElement().normalize();
+
+            //System.out.println("Root element :" + doc.getDocumentElement().getNodeName());
+
+            String item = "datacenter";
+            NodeList nodeList = doc.getElementsByTagName(item);
+            Integer nodeListLength = nodeList.getLength();
+            for (int i = 0; i < nodeListLength; i++) {
+                Element itemElement = (Element) nodeList.item(i);
+
+                //String idValue = itemElement.getAttribute("location");
+                //String typeValue = itemElement.getAttribute("type");
+
+                // Get location element
+                Element locationElement = (Element) itemElement.getElementsByTagName("location").item(0);
+                Element x_posElement = (Element) itemElement.getElementsByTagName("x_pos").item(0);
+                Double x_posValue = Double.parseDouble(x_posElement.getTextContent());
+                //System.out.println("x_pos: " + x_posValue);
+                Element y_posElement = (Element) itemElement.getElementsByTagName("y_pos").item(0);
+                Double y_posValue = Double.parseDouble(y_posElement.getTextContent());
+                //System.out.println("y_pos: " + y_posValue);
+                //sites.
+                sites.add(i, new Point(x_posValue, y_posValue));
+                //fogNodePoints.add(i, new Point(x_posValue, y_posValue));
+            }
+            //this.sites = sites;
+            edges = new ArrayList<Edge>();
+            partitionVertices = new ArrayList<Point>();
+            partitionEdges = new ArrayList<Edge>();
+            //System.out.println("Sites size="+sites.size());//+" fogNodePoints size="+fogNodePoints.size());
+            //System.out.println("Sites size="+sites.size()+" fogNodePoints size="+fogNodePoints.size());
+            //System.exit(58658);
+            for(Point p: sites){
+                fogNodesLongLat.add(new Point(p.x,p.y));
+                //System.out.print("fog node: (" + host.x + "," + host.y + ") ");
+            }
+            this.setFogNodeXYCoordinate(fogNodesLongLat);
+            generateVoronoi();
+
+            if(!esm.isNetworkTopologySet()){
+                try {
+                    esm.startDatacenters();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                Integer numberOfHosts = esm.getHostIdCounter();
+                //List<EdgeHost> ehList = esm.getHostList();
+                List<Datacenter> dcList = esm.getDatacenterList();
+                ArrayList<Point> fogNodelist = fogNodePoints;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 
     // Create a class constructor for the Voronoi class using fog node coordinates as a json file
@@ -89,6 +171,11 @@ public class Voronoi {
         return this.VoronoiNeighborSiteMap;
     }
 
+    // The method getVoronoiNeighborSiteMap() returns the List of VoronoiNeighborSiteMap in XY coordinates.
+    public HashMap<Point, List<Point>> getVoronoiNeighborSiteMapXY(){
+        return this.VoronoiNeighborSiteMapXY;
+    }
+
     // The method List<Point> sortArray(List<Point> inputList) sorts the inputList
     // containing the list of points with 2 coordinates such as (x, y) or
     // (Longitude, Latitude) lexicographically.
@@ -105,21 +192,115 @@ public class Voronoi {
     // IoT/Mobile Device is identified by its coordinates. In the future, other
     // parameters such as latency, CPU, RAM, Memory storage requirements will
     // be taken into account. Host assignment will change according to the requirement(s).
-    public Point getHost(Point devToBeHosted, String fogNodeFileName){
+    public Point getHost(MobileDevice md, String fogNodeFileName){
         Point host = new Point();
+        //EdgeServerManager esm = new EdgeServerManager();
+        Integer numberOfHosts = esm.getHostIdCounter();
+        List<EdgeHost> ehList = esm.getHostList();
 
         ArrayList<Point> fogNodelist = new ArrayList<Point>();
         //HashMap<Point, ArrayList<Point>> rsltsDic = new HashMap<Point, ArrayList<Point>>();
-        for(Point p: fogNodePoints){
+        /*for(Point p: fogNodePoints){
             fogNodelist.add(new Point(p.x,p.y));
             System.out.print("fog node: (" + host.x + "," + host.y + ") ");
+        }*/
+
+        /*for(Point p: fogNodePoints){
+            fogNodelist.add(new Point(p.x,p.y));
+            System.out.print("Edge host location: (" + host.x + "," + host.y + ") ");
+        }*/
+
+        for(EdgeHost eh: ehList){
+            fogNodelist.add(new Point(eh.getLocation().getXPos(),eh.getLocation().getYPos()));
+            System.out.print("Edge host location: (" + eh.getLocation().getXPos() + "," + eh.getLocation().getYPos() + ") ");
         }
 
         KDTree kdtree = new KDTree(fogNodesLongLat);
-        host = kdtree.getNearestFogNode(fogNodeFileName, devToBeHosted);
-        if(debug) System.out.print("Host for ("+devToBeHosted.x+","+devToBeHosted.y+") = (" + host.x + "," + host.y + ") ");
+        Point mobileDeviceLocation = new Point(md.getLocation().getXPos(), md.getLocation().getYPos());// new MobileDevice(mobileDeviceId, SimSettings.APP_TYPES.valueOf()).getLocation()
+        host = kdtree.getNearestFogNode(fogNodeFileName, mobileDeviceLocation);//devToBeHosted);
+        Integer hostId = esm.hostId_Location.getKey(host);
+        EdgeHost eh = esm.hostId_EdgeHost.get(hostId);
+        //Get EdgeHostId on the basis of host's location
 
-        return host;
+        //Check if host is good host or not. If not, search for other fog node
+        if (!eh.isMIPSAvailable(md) || !eh.isBWAvailable(md) || !eh.isLatencySatisfactory(md)) {
+            //Find another best alternative host
+            //Get the Voronoi neighbors of the nearest host
+            HashMap<Point, List<Point>> VoronoiNeighbors = getVoronoiNeighborSiteMap();
+            System.exit(3536);
+            return host;//false;
+        }else {
+            if (debug)
+                System.out.print("Host for (" + mobileDeviceLocation.x + "," + mobileDeviceLocation.y + ") = (" + host.x + "," + host.y + ") ");
+            return host;
+        }
+    }
+
+    public EdgeHost getNearestHost(MobileDevice md, String fogNodeFileName){
+        Point host = new Point();
+        //EdgeServerManager esm = new EdgeServerManager();
+        Integer numberOfHosts = esm.getHostIdCounter();
+        List<EdgeHost> ehList = esm.getHostList();
+
+        ArrayList<Point> fogNodelist = new ArrayList<Point>();
+        //HashMap<Point, ArrayList<Point>> rsltsDic = new HashMap<Point, ArrayList<Point>>();
+        /*for(Point p: fogNodePoints){
+            fogNodelist.add(new Point(p.x,p.y));
+            System.out.print("fog node: (" + host.x + "," + host.y + ") ");
+        }*/
+
+        /*for(Point p: fogNodePoints){
+            fogNodelist.add(new Point(p.x,p.y));
+            System.out.print("Edge host location: (" + host.x + "," + host.y + ") ");
+        }*/
+
+        for(EdgeHost eh: ehList){
+            fogNodelist.add(new Point(eh.getLocation().getXPos(),eh.getLocation().getYPos()));
+            System.out.print("Edge host location: (" + eh.getLocation().getXPos() + "," + eh.getLocation().getYPos() + ") ");
+        }
+
+        KDTree kdtree = new KDTree(fogNodesLongLat);
+        Point mobileDeviceLocation = new Point(md.getLocation().getXPos(), md.getLocation().getYPos());// new MobileDevice(mobileDeviceId, SimSettings.APP_TYPES.valueOf()).getLocation()
+        host = kdtree.getNearestFogNode(fogNodeFileName, mobileDeviceLocation);//devToBeHosted);
+        Integer hostId = esm.hostId_Location.getKey(host);
+        EdgeHost eh = esm.hostId_EdgeHost.get(hostId);
+        //Get EdgeHostId on the basis of host's location
+        return eh;
+    }
+
+    public EdgeHost getNearestHost(MobileDevice md){
+        Point host = new Point();
+        /*EdgeServerManager esm = new EdgeServerManager();
+        if(!esm.isNetworkTopologySet()){
+            try {
+                esm.startDatacenters();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            Integer numberOfHosts = esm.getHostIdCounter();
+            //List<EdgeHost> ehList = esm.getHostList();
+            List<Datacenter> dcList = esm.getDatacenterList();
+            ArrayList<Point> fogNodelist = fogNodePoints;
+        }*/
+
+
+        /*for(EdgeHost eh: ehList){
+            fogNodelist.add(new Point(eh.getLocation().getXPos(),eh.getLocation().getYPos()));
+            System.out.print("Edge host location: (" + eh.getLocation().getXPos() + "," + eh.getLocation().getYPos() + ") ");
+        }*/
+        //for(Datacenter dc: dcList){
+            //fogNodelist.add(new Point(dc.getHostList().get(0)..getLocation().getXPos(),dc.getLocation().getYPos()));
+            //System.out.print("Datacenter location: (" + dc.getLocation().getXPos() + "," + eh.getLocation().getYPos() + ") ");
+        //}
+        System.out.println();
+
+        KDTree kdtree = new KDTree(fogNodesLongLat);
+        Point mobileDeviceLocation = new Point(md.getLocation().getXPos(), md.getLocation().getYPos());// new MobileDevice(mobileDeviceId, SimSettings.APP_TYPES.valueOf()).getLocation()
+        host = kdtree.getNearestFogNode(fogNodesLongLat, mobileDeviceLocation);//devToBeHosted);
+        Integer hostId = esm.hostId_Location.getKey(host);
+        EdgeHost eh = esm.hostId_EdgeHost.get(hostId);
+        //Get EdgeHostId on the basis of host's location
+        return eh;
     }
 
     // The method getHostLongLat(Point devToBeHosted) returns the fog node's
@@ -194,7 +375,8 @@ public class Voronoi {
         //coordinateProjection(fogNodeFileName, devToBeHosted);
         ArrayList<Point> fogNodelist = new ArrayList<Point>();
         //HashMap<Point, ArrayList<Point>> rsltsDic = new HashMap<Point, ArrayList<Point>>();
-        for(Point p: fogNodePoints){
+        //for(Point p: fogNodePoints){
+        for(Point p: sites){
             fogNodelist.add(new Point(p.x,p.y));
             if(debug) System.out.print("fog node: (" + host.x + "," + host.y + ") ");
         }
@@ -206,7 +388,8 @@ public class Voronoi {
         }*/
         //System.exit(99);
         KDTree kdtree = new KDTree(fogNodesXY);//fogNodelist);
-        host = kdtree.getNearestFogNode(fogNodesXY, devToBeHosted);
+        Point devToBeHostedXY = devToBeHosted.convertLongLatPointToXYCoordinates();
+        host = kdtree.getNearestFogNodeUsingXY(fogNodesXY, devToBeHostedXY);
         if(debug) System.out.print("Host for ("+devToBeHosted.x+","+devToBeHosted.y+") = (" + host.x + "," + host.y + ") ");
 
         /*pointCnt = 0;
@@ -251,6 +434,7 @@ public class Voronoi {
             events.add(new Event(p, Event.SITE_EVENT));
             VoronoiPartitionVertexMap.put(p, null);
             VoronoiNeighborSiteMap.put(p, null);
+            VoronoiNeighborSiteMapXY.put(p.convertLongLatPointToXYCoordinates(), null);
             VoronoiPartitionEdgeMap.put(p, null);
         }
 
@@ -470,6 +654,19 @@ public class Voronoi {
             NeighborPointC = new ArrayList<>(VoronoiNeighborSiteMap.get(c.point));
         }
 
+        ArrayList<Point> NeighborPointA_XY = new ArrayList<>();
+        ArrayList<Point> NeighborPointB_XY = new ArrayList<>();
+        ArrayList<Point> NeighborPointC_XY = new ArrayList<>();
+        if(VoronoiNeighborSiteMapXY.get(a.point.convertLongLatPointToXYCoordinates()) != null){
+            NeighborPointA_XY = new ArrayList<>(VoronoiNeighborSiteMapXY.get(a.point.convertLongLatPointToXYCoordinates()));
+        }
+        if(VoronoiNeighborSiteMapXY.get(b.point.convertLongLatPointToXYCoordinates()) != null){
+            NeighborPointB_XY = new ArrayList<>(VoronoiNeighborSiteMapXY.get(b.point.convertLongLatPointToXYCoordinates()));
+        }
+        if(VoronoiNeighborSiteMapXY.get(c.point.convertLongLatPointToXYCoordinates()) != null){
+            NeighborPointC_XY = new ArrayList<>(VoronoiNeighborSiteMapXY.get(c.point.convertLongLatPointToXYCoordinates()));
+        }
+
         // Adding points to the ArrayList
         if(!NeighborPointA.contains(b.point)) NeighborPointA.add(b.point);
         if(!NeighborPointA.contains(c.point)) NeighborPointA.add(c.point);
@@ -482,6 +679,20 @@ public class Voronoi {
         if(!NeighborPointC.contains(a.point)) NeighborPointC.add(a.point);
         if(!NeighborPointC.contains(b.point)) NeighborPointC.add(b.point);
         VoronoiNeighborSiteMap.put(c.point, NeighborPointC);
+        //Neighbor addition ends
+
+        // Adding points (XY coordinates) to the ArrayList
+        if(!NeighborPointA_XY.contains(b.point.convertLongLatPointToXYCoordinates())) NeighborPointA_XY.add(b.point.convertLongLatPointToXYCoordinates());
+        if(!NeighborPointA_XY.contains(c.point.convertLongLatPointToXYCoordinates())) NeighborPointA_XY.add(c.point.convertLongLatPointToXYCoordinates());
+        VoronoiNeighborSiteMapXY.put(a.point.convertLongLatPointToXYCoordinates(), NeighborPointA_XY);
+
+        if(!NeighborPointB_XY.contains(a.point.convertLongLatPointToXYCoordinates())) NeighborPointB_XY.add(a.point.convertLongLatPointToXYCoordinates());
+        if(!NeighborPointB_XY.contains(c.point.convertLongLatPointToXYCoordinates())) NeighborPointB_XY.add(c.point.convertLongLatPointToXYCoordinates());
+        VoronoiNeighborSiteMapXY.put(b.point.convertLongLatPointToXYCoordinates(), NeighborPointB_XY);
+
+        if(!NeighborPointC_XY.contains(a.point.convertLongLatPointToXYCoordinates())) NeighborPointC_XY.add(a.point.convertLongLatPointToXYCoordinates());
+        if(!NeighborPointC_XY.contains(b.point.convertLongLatPointToXYCoordinates())) NeighborPointC_XY.add(b.point.convertLongLatPointToXYCoordinates());
+        VoronoiNeighborSiteMapXY.put(c.point.convertLongLatPointToXYCoordinates(), NeighborPointC_XY);
         //Neighbor addition ends
 
         // compute radius

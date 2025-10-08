@@ -15,6 +15,11 @@ package edu.boun.edgecloudsim.edge_server;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+
+import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
+import edu.auburn.pFogSim.util.MobileDevice;
+import edu.boun.edgecloudsim.sample_voronoi_app.Point;
+import edu.boun.edgecloudsim.sample_voronoi_app.Voronoi;
 import org.cloudbus.cloudsim.CloudletSchedulerTimeShared;
 import org.cloudbus.cloudsim.Datacenter;
 import org.cloudbus.cloudsim.DatacenterCharacteristics;
@@ -43,6 +48,8 @@ import edu.auburn.pFogSim.clustering.*;
 import edu.auburn.pFogSim.netsim.*;
 import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
 
+import org.apache.commons.collections4.BidiMap;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 /**
  * 
@@ -67,7 +74,11 @@ public class EdgeServerManager {
 	private List<NodeSim> nodesForTopography = new ArrayList<NodeSim>();
 	private List<Link> linksForTopography = new ArrayList<Link>();
 
-	
+	public BidiMap<Integer, Point> hostId_Location = new DualHashBidiMap<>();
+	public BidiMap<Integer, EdgeHost> hostId_EdgeHost = new DualHashBidiMap<>();
+
+    private boolean isNetworkTopologySet = false;
+
 	/**
 	 * Constructor
 	 */
@@ -186,6 +197,11 @@ public class EdgeServerManager {
 
 		}// end HAFA Arch
 		checkUniqueDC();
+
+		/*if (SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiSingleLayerOrchestrator) {
+			SimLogger.printLine("\n\t Creating clusters of fog nodes...");
+		}*/
+
 	}
 
 	
@@ -358,17 +374,17 @@ public class EdgeServerManager {
 		//SimSettings.PLACE_TYPES placeType = SimUtils.stringToPlace(attractiveness);
 
 		//Make NodeSim object with the input x/y positions and add that to the list of nodes
-			NodeSim newNode;
-			if(moving)
-			{
-				newNode = new NodeSim(x_pos, y_pos, altitude, level, wlan_id, wap, moving, new Location(dx, dy));
-			}
-			else 
-			{
-				newNode = new NodeSim(x_pos, y_pos, altitude, level, wlan_id, wap);
-			}
-			newNode.getLocation().setBW(bw);
-			nodesForTopography.add(newNode);
+		NodeSim newNode;
+		if(moving)
+		{
+			newNode = new NodeSim(x_pos, y_pos, altitude, level, wlan_id, wap, moving, new Location(dx, dy));
+		}
+		else
+		{
+			newNode = new NodeSim(x_pos, y_pos, altitude, level, wlan_id, wap);
+		}
+		newNode.getLocation().setBW(bw);
+		nodesForTopography.add(newNode);
 
 		NodeList hostNodeList = datacenterElement.getElementsByTagName("host");
 		for (int j = 0; j < hostNodeList.getLength(); j++) {
@@ -411,6 +427,11 @@ public class EdgeServerManager {
 			host.setLevel(level);
 			hostList.add(host);
 			hostIdCounter++;
+			//Added by sks0099 on 20250718 - begin
+			//Create bidirectional maps for voronoi simulation
+			hostId_Location.put(hostIdCounter, new Point(host.getLocation().getXPos(), host.getLocation().getYPos()));
+			hostId_EdgeHost.put(hostIdCounter, host);
+			//Added by sks0099 on 20250718 - end
 		}
 		
 
@@ -693,23 +714,23 @@ public class EdgeServerManager {
 	public EdgeHost findNearestHostByLayer(int fLevel, Location loc) {
 		EdgeHost nearest = null;
 		ArrayList<EdgeHost> hostList = new ArrayList<EdgeHost>();
-		//Double minDistance = Double.MAX_VALUE; 
+		//Double minDistance = Double.MAX_VALUE;
 		//Double distance;
-		
+
 		// Get the list of all nodes belonging to the specified layer
 		for (int k=0; k<puddles.length; k++) {
-			
+
 			if (puddles[k][0].getLevel() != fLevel)
 				continue;
-			
+
 			// This kth array of Puddles belong to fLevel.
 			// Consolidate the list of Hosts, from each Puddle of this fog layer
 			for (int i=0; i<puddles[k].length; i++) {
 				hostList.addAll(puddles[k][i].getMembers());
 			}
-			break;			
+			break;
 		}
-		
+
 		//System.out.print("Fog level: "+fLevel+" hostList count: "+hostList.size());
 		//DistRadix sort = new DistRadix(hostList, loc);//use radix sort based on distance from task
 		BinaryHeap sort = new BinaryHeap(hostList.size(), loc, hostList);
@@ -717,6 +738,14 @@ public class EdgeServerManager {
 		//System.out.print("nodes size: " + nodes.size() + "  Device Id: " + mobile.getId() + "  WAP Id: " + mobile.getLocation().getServingWlanId());
 		nearest = nodes.poll();
 		//System.out.println(" Nearest fog node to mobile device: "+nearest.getId());
+
+		// Return the nearest node
+		return nearest;
+	}
+
+	public EdgeHost findNearestVoronoiSiteByLayer(int fLevel, MobileDevice md, Voronoi partition) {
+		EdgeHost nearest = null;
+		nearest = partition.getNearestHost(md);
 
 		// Return the nearest node
 		return nearest;
@@ -908,7 +937,12 @@ public class EdgeServerManager {
 	 */
 	public void setNetworkTopology(NetworkTopology networkTopology) {
 		this.networkTopology = networkTopology;
+        this.isNetworkTopologySet = true;
 	}
+
+    public boolean isNetworkTopologySet() {
+        return this.isNetworkTopologySet;
+    }
 
 	
 	/**

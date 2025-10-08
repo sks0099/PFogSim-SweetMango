@@ -10,10 +10,18 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Properties;
+import java.util.*;
 
+//import com.sun.org.apache.bcel.internal.classfile.ConstantClass;
+import edu.boun.ConstantsClass;
 import edu.boun.edgecloudsim.core.SimSettings;
+import edu.boun.edgecloudsim.sample_voronoi_app.MyPoint3D;
+import edu.boun.edgecloudsim.sample_voronoi_app.Point;
+import edu.boun.edgecloudsim.sample_voronoi_app.Voronoi;
+import javafx.geometry.Point3D;
+import org.apache.commons.collections4.BidiMap;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
+import org.apache.commons.math3.util.Pair;
 
 
 /**
@@ -22,15 +30,18 @@ import edu.boun.edgecloudsim.core.SimSettings;
  *
  */
 public class DataInterpreter {
-	private static int MAX_LEVELS = 7;
-	private static String[] files= {
+	// Next line commented by sks0099 on 06/26/2025
+	//private static int MAX_LEVELS = 7; // This number should not be hard coded here. Global constants can be moved to default_config.properties
+	private static int MAX_LEVELS = ConstantsClass.MAX_LEVELS; // Added by sks0099 on 06/26/2025
+	/*private static String[] files= {
 			"Google_Cloud_DC.csv", 
 			"Chicago_CityHall.csv", 
 			"Chicago_Universities.csv", 
 			"Chicago_Wards.csv", 
 			"Chicago_Libraries.csv", 
 			"Chicago_Connect.csv", 
-			"Chicago_Schools.csv"};
+			"Chicago_Schools.csv"};*/// Commented by sks0099 on 06/26/2025
+	private static String[] files = ConstantsClass.files; // Added by sks0099 on 06/26/2025
 	private static String[][] nodeSpecs = new String[MAX_LEVELS][20];// the specs for all layers of the fog devices
 	private static ArrayList<Double[]> nodeList = new ArrayList<Double[]>();
 	private static ArrayList<Double[]> tempList = new ArrayList<Double[]>();
@@ -42,12 +53,16 @@ public class DataInterpreter {
 	
 	private static boolean universitiesYet = false;
 	private static boolean universitiesLinked = false;
-    private static String inputType = "gps";
-    private static boolean movingMobileDevices = false;
-	
+    //private static String inputType = "gps"; // Commented by sks0099 on 06/26/2025
+	private  static String inputType = ConstantsClass.inputType; // Added by sks0099 on 06/26/2025
+    //private static boolean movingMobileDevices = false; // Commented by sks0099 on 06/26/2025
+	private static boolean movingMobileDevices = ConstantsClass.movingMobileDevices; // Added by sks0099 on 06/26/2025
 	private File xmlFile = null;
 	private FileWriter xmlFW = null;
 	private BufferedWriter xmlBR = null;
+	private static BidiMap<Integer, Point> sitesLongLatBidiMap = new DualHashBidiMap<>();
+	private static BidiMap<Integer, Point> sitesLongLat3DBidiMap = new DualHashBidiMap<>();
+	private static BidiMap<Integer, Point> sitesXYBidiMap = new DualHashBidiMap<>();
 	
 	
 	/**
@@ -72,7 +87,7 @@ public class DataInterpreter {
 	public static double measure(double lat1, double lon1, double alt1, double lat2, double lon2, double alt2){  // generally used geo measurement function
 		double d = DataInterpreter.measure(lat1,lon1,lat2,lon2);
 		//Pythagoras
-		double dist = Math.sqrt((d*d)+((alt1-alt2)*(alt1-alt2)));    
+		double dist = Math.sqrt((d*d)+((alt1-alt2)*(alt1-alt2))); //alt1 and alt2 must be in meters
 		return dist;
 	}
 	
@@ -81,233 +96,374 @@ public class DataInterpreter {
 	 * Creates input files for node and link configurations - as per specified system configuration.
 	 * @throws IOException
 	 */
-	public static void readFile() throws IOException {
+	public static void readFile(Integer iterationNumber) throws IOException {
 		FileReader dataFR = null;
 		BufferedReader dataBR = null;
-		PrintWriter node = new PrintWriter("node_test.xml", "UTF-8");
-	    PrintWriter links = new PrintWriter("links_test.xml", "UTF-8");
-		
-	    node.println("<?xml version=\"1.0\"?>");
-	    links.println("<?xml version=\"1.0\"?>");
-	    node.println("<edge_devices>");
-	    links.println("<links>");
-	    
+		//xml file names in the next 2 lines should be moved to default_config.properties
+		PrintWriter node = new PrintWriter(ConstantsClass.nodeXmlFile, "UTF-8");
+		PrintWriter links = new PrintWriter(ConstantsClass.linksXmlFile, "UTF-8");
+
+		node.println("<?xml version=\"1.0\"?>");
+		links.println("<?xml version=\"1.0\"?>");
+		node.println("<edge_devices>");
+		links.println("<links>");
+
+		String[] scenarioList = new ConstantsClass().getSIMULATION_SCENARIOS();
+		//System.out.println(scenarioList[iterationNumber]);
+		//ArrayList scenarioList = new ArrayList()<(SS.getSimulationScenarios())>;
+		String scenario = scenarioList[iterationNumber];
 		String rawNode = null;
 		String[] nodeLoc = new String[4];
 		Double[] temp = new Double[4];
 		int counter = 0;
 		int prevCounter = 0;
-		for(int i = 0; i < MAX_LEVELS; i++)
-		{
-			
-			try {
-				dataFR = new FileReader(files[i]);
-				dataBR = new BufferedReader(dataFR);
-			}
-			catch (FileNotFoundException e) {
-			}
-			dataBR.readLine(); //Gets rid of title data
-			while(dataBR.ready()) {
+		switch (scenario.toUpperCase()) {
+			case "SINGLE_LAYER_VORONOI":
+				// code to execute if expression matches value1
+				System.out.println("Creation of SINGLE_LAYER_VORONOI " + ConstantsClass.nodeXmlFile + " and " + ConstantsClass.linksXmlFile + " begins ...");
+				//rawNode = null;
+				//String[] nodeLoc = new String[4];
+				//Double[] temp = new Double[4];
+				List<Point> sitesLongLat = new ArrayList<Point>();
+				List<Point> sitesXY = new ArrayList<Point>();
 
-				rawNode = dataBR.readLine();
-				nodeLoc = rawNode.split(",");
-				temp[0] = (double)counter; //ID
-				temp[2] = Double.parseDouble(nodeLoc[1]); //Y Coord
-				temp[1] = Double.parseDouble(nodeLoc[2]); //X Coord
-				temp[3] = Double.parseDouble(nodeLoc[3]); //Altitude
-				if(MAX_LONG == -100000 || temp[1] > MAX_LONG)	MAX_LONG = temp[1];		
-				if(MIN_LONG == -100000 || temp[1] < MIN_LONG)	MIN_LONG = temp[1];	
-				if(MAX_LAT == -100000 || temp[2] > MAX_LAT)	MAX_LAT = temp[2];	
-				if(MIN_LAT == -100000 || temp[2] < MIN_LAT)	MIN_LAT = temp[2];	
-				
-				//Add to output file		    
-			    node.println(String.format("\n<datacenter arch=\"%s\" os=\"%s\" vmm=\"%s\">", nodeSpecs[MAX_LEVELS - i - 1][0], nodeSpecs[MAX_LEVELS - i - 1][1], nodeSpecs[MAX_LEVELS - i - 1][2]));
-			    node.println(String.format("\t<costPerBw>%s</costPerBw>\n\t<costPerSec>%s</costPerSec>\n\t<costPerMem>%s</costPerMem>\n\t<costPerStorage>%s</costPerStorage>", nodeSpecs[MAX_LEVELS - i - 1][3], nodeSpecs[MAX_LEVELS - i - 1][4], nodeSpecs[MAX_LEVELS - i - 1][5], nodeSpecs[MAX_LEVELS - i - 1][6]));
-			    //Qian change level start from 1
-			    node.println(String.format("\t<location>\n\t\t<x_pos>%s</x_pos>\n\t\t<y_pos>%s</y_pos>\n\t\t<altitude>%s</altitude>\n\t\t<level>%s</level>\n\t\t<wlan_id>%s</wlan_id>\n\t\t<wap>%s</wap>\n\t\t<moving>%s</moving>\n\t\t<bandwidth>%s</bandwidth>\n\t\t<dx>%s</dx>\n\t\t<dy>%s</dy>\n\t</location>", nodeLoc[2], nodeLoc[1],nodeLoc[3], MAX_LEVELS - i, counter, nodeSpecs[MAX_LEVELS - i - 1][7], nodeSpecs[MAX_LEVELS - i - 1][8], nodeSpecs[MAX_LEVELS - i - 1][13], nodeLoc[4], nodeLoc[5]));
-			    node.println(String.format("\t<host>\n\t\t<core>%s</core>\n\t\t<mips>%s</mips>\n\t\t<ram>%s</ram>\n\t\t<storage>%s</storage>", nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
-			    node.println(String.format("\t\t<VM vmm=\"%s\">\n\t\t\t<core>%s</core>\n\t\t\t<mips>%s</mips>\n\t\t\t<ram>%s</ram>\n\t\t\t<storage>%s</storage>\n\t\t</VM>\n\t</host>\n</datacenter>", nodeSpecs[MAX_LEVELS - i - 1][2], nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
-	
-				//Make link to previous closest node on higher level
-				if(!nodeList.isEmpty())
-				{
-					double minDistance = Double.MAX_VALUE;
-					int index = -1;
-					double distance = 0;
-					//Go through all nodes one level up and find the closest
-					for(int j = 0; j < nodeList.size(); j++)
-					{
-						distance = measure(nodeList.get(j)[2], nodeList.get(j)[1], nodeList.get(j)[3], temp[2], temp[1], temp[3]);
-						if(distance < minDistance)
-						{
-							minDistance = distance;
-							index = j;
+				//int counter = 0;
+				//int prevCounter = 0;
+				int nodeCount = 0;
+				int nodeCountSum = 0;
+				for (int i = 0; i < MAX_LEVELS; i++) {
+					try {
+						dataFR = new FileReader(files[i]);
+						dataBR = new BufferedReader(dataFR);
+					} catch (FileNotFoundException e) {
+					}
+					nodeCount = 0;
+					dataBR.readLine(); //Gets rid of title data
+					while (dataBR.ready()) {
+						rawNode = dataBR.readLine();
+						nodeLoc = rawNode.split(",");
+						temp[0] = (double) counter; //ID
+						temp[2] = Double.parseDouble(nodeLoc[1]); //Y Coord
+						temp[1] = Double.parseDouble(nodeLoc[2]); //X Coord
+						temp[3] = Double.parseDouble(nodeLoc[3]); //Altitude
+						if (MAX_LONG == -100000 || temp[1] > MAX_LONG) MAX_LONG = temp[1];
+						if (MIN_LONG == -100000 || temp[1] < MIN_LONG) MIN_LONG = temp[1];
+						if (MAX_LAT == -100000 || temp[2] > MAX_LAT) MAX_LAT = temp[2];
+						if (MIN_LAT == -100000 || temp[2] < MIN_LAT) MIN_LAT = temp[2];
+
+						Point tempPoint = new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1]));
+						if(!sitesLongLat.contains(tempPoint)){
+							//Add to output file
+							node.println(String.format("\n<datacenter arch=\"%s\" os=\"%s\" vmm=\"%s\">", nodeSpecs[MAX_LEVELS - i - 1][0], nodeSpecs[MAX_LEVELS - i - 1][1], nodeSpecs[MAX_LEVELS - i - 1][2]));
+							node.println(String.format("\t<costPerBw>%s</costPerBw>\n\t<costPerSec>%s</costPerSec>\n\t<costPerMem>%s</costPerMem>\n\t<costPerStorage>%s</costPerStorage>", nodeSpecs[MAX_LEVELS - i - 1][3], nodeSpecs[MAX_LEVELS - i - 1][4], nodeSpecs[MAX_LEVELS - i - 1][5], nodeSpecs[MAX_LEVELS - i - 1][6]));
+							//Qian change level start from 1
+							node.println(String.format("\t<location>\n\t\t<x_pos>%s</x_pos>\n\t\t<y_pos>%s</y_pos>\n\t\t<altitude>%s</altitude>\n\t\t<level>%s</level>\n\t\t<wlan_id>%s</wlan_id>\n\t\t<wap>%s</wap>\n\t\t<moving>%s</moving>\n\t\t<bandwidth>%s</bandwidth>\n\t\t<dx>%s</dx>\n\t\t<dy>%s</dy>\n\t</location>", nodeLoc[2], nodeLoc[1], nodeLoc[3], MAX_LEVELS - i, counter, nodeSpecs[MAX_LEVELS - i - 1][7], nodeSpecs[MAX_LEVELS - i - 1][8], nodeSpecs[MAX_LEVELS - i - 1][13], nodeLoc[4], nodeLoc[5]));
+
+							sitesLongLat.add(tempPoint);
+							sitesLongLatBidiMap.put(sitesLongLat.size() - 1, new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1])));
+							sitesLongLat3DBidiMap.put(sitesLongLat.size() - 1, new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1]), Double.parseDouble(nodeLoc[3])));
+							sitesXYBidiMap.put(sitesLongLat.size() - 1, new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1])).convertLongLatPointToXYCoordinates());
+							node.println(String.format("\t<host>\n\t\t<core>%s</core>\n\t\t<mips>%s</mips>\n\t\t<ram>%s</ram>\n\t\t<storage>%s</storage>", nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
+							node.println(String.format("\t\t<VM vmm=\"%s\">\n\t\t\t<core>%s</core>\n\t\t\t<mips>%s</mips>\n\t\t\t<ram>%s</ram>\n\t\t\t<storage>%s</storage>\n\t\t</VM>\n\t</host>\n</datacenter>", nodeSpecs[MAX_LEVELS - i - 1][2], nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
+							nodeCount++;
 						}
 					}
-					minDistance = Double.MAX_VALUE;
-					if(index >= 0)
-					{
-						if(nodeList.get(index).equals(temp)) 
-						{
-							System.exit(0);
+					System.out.println("i = " + i + " nodeCount = " + nodeCount + " sites size = " + sitesLongLat.size());
+				/*for(Point site:sites) {
+					System.out.println(site);
+				}*/
+					nodeCountSum += nodeCount;
+				/*prevCounter = counter;
+
+
+
+
+				// Prepare to process info for next layer fog nodes
+				tempList.clear();*/
+
+
+				}// end - for MAX_LEVELS
+				System.out.println("Total number of nodes = " + nodeCountSum);
+
+				//After finishing creating of nodes xml file, get Single Layer Voronoi created
+				//Convert sites with longitude and latitude to XY coordinates
+				for (Point siteLongLat : sitesLongLat) {
+					sitesXY.add(siteLongLat.convertLongLatPointToXYCoordinates());
+				}
+				//sitesXY = sitesLongLat;
+				Voronoi myVoronoi = new Voronoi(sitesXY);
+				//myVoronoi.printPartitionNeighborInfo();
+				HashMap<Point, List<Point>> myVoronoiNeighborSiteMap = myVoronoi.getVoronoiNeighborSiteMap();
+				System.out.println("myVoronoiNeighborSiteMap size = " + myVoronoiNeighborSiteMap.size());
+				HashMap<Point, List<Point>> myVoronoiNeighborSiteMapLongLat = convertFromXYToLongLat(myVoronoiNeighborSiteMap);
+			/*for (Map.Entry<Point, List<Point>> entry : myVoronoiNeighborSiteMapLongLat.entrySet()) {
+				Point key = entry.getKey();
+				List<Point> value = entry.getValue();
+				//System.out.println("KeyId-Key(KeyLongLat): " + keyId+"-"+key + keyLongLat+", Value: " + value);
+				System.out.println("Key: " + key + ", Value: " + value);
+			}*/
+
+				//After creation of Single Layer Voronoi, create links xml file on the basis of fog sites of neighboring partitions
+				List<Pair<Integer, Integer>> pairCompleted = new ArrayList<>();
+				for (Map.Entry<Point, List<Point>> entry : myVoronoiNeighborSiteMapLongLat.entrySet()) {
+					Point key = entry.getKey();
+					Integer leftId = sitesLongLatBidiMap.getKey(key);
+					List<Point> value = entry.getValue();
+					for(Point val: value) {
+						//System.out.println("KeyId-Key(KeyLongLat): " + keyId+"-"+key + keyLongLat+", Value: " + value);
+						//System.out.println("Key: " + key + ", Value: " + value);
+						Integer rightId = sitesLongLatBidiMap.getKey(val);
+						if(!pairCompleted.contains(new Pair<>(leftId, rightId))) {
+							//double dis = measure(temp[2], temp[1], temp[3], nodeList.get(index)[2], nodeList.get(index)[1], nodeList.get(index)[3]) / 1000;
+							double dis = measure(sitesLongLat3DBidiMap.get(leftId).getX(), sitesLongLat3DBidiMap.get(leftId).getY(),
+									sitesLongLat3DBidiMap.get(leftId).getZ(), sitesLongLat3DBidiMap.get(rightId).getX(),
+									sitesLongLat3DBidiMap.get(rightId).getY(), sitesLongLat3DBidiMap.get(rightId).getZ()) / 1000;
+							double latency = dis * 0.01;
+							links.println("\t<link>\n" +
+									"		<name>L" + leftId + "_" + rightId + "</name>\n" +
+									"		<left>\n" +
+									"			<x_pos>" + sitesLongLat3DBidiMap.get(leftId).getX() + "</x_pos>\n" +
+									"			<y_pos>" + sitesLongLat3DBidiMap.get(leftId).getY() + "</y_pos>\n" +
+									"			<altitude>" + sitesLongLat3DBidiMap.get(leftId).getZ() + "</altitude>\n" +
+									"		</left>\n" +
+									"		<right>\n" +
+									"			<x_pos>" + sitesLongLat3DBidiMap.get(rightId).getX() + "</x_pos>\n" +
+									"			<y_pos>" + sitesLongLat3DBidiMap.get(rightId).getY() + "</y_pos>\n" +
+									"			<altitude>" + sitesLongLat3DBidiMap.get(rightId).getZ() + "</altitude>\n" +
+									"		</right>\n" +
+									"		<left_latency>" + latency + "</left_latency>\n" +
+									"		<right_latency>" + latency + "</right_latency>\n" +
+									"	</link>");
+							pairCompleted.add(new Pair<>(leftId, rightId));
+							pairCompleted.add(new Pair<>(rightId, leftId));
 						}
-						double dis = measure(temp[2], temp[1], temp[3], nodeList.get(index)[2], nodeList.get(index)[1], nodeList.get(index)[3]) / 1000;
-						double latency = dis * 0.01;
-						links.println("\t<link>\n" + 
-					    		"		<name>L" + nodeList.get(index)[0] + "_" + temp[0] + "</name>\n" + 
-					    		"		<left>\n" + 
-					    		"			<x_pos>" + temp[1] + "</x_pos>\n" + 
-					    		"			<y_pos>" + temp[2] + "</y_pos>\n" +
-					    		"			<altitude>" + temp[3] + "</altitude>\n" +
-					    		"		</left>\n" + 
-					    		"		<right>\n" + 
-					    		"			<x_pos>" + nodeList.get(index)[1] + "</x_pos>\n" + 
-					    		"			<y_pos>" + nodeList.get(index)[2] + "</y_pos>\n" +
-					    		"			<altitude>" + nodeList.get(index)[3] + "</altitude>\n" +
-					    		"		</right>\n" + 
-					    		"		<left_latency>" + latency + "</left_latency>\n" + 
-					    		"		<right_latency>" + latency + "</right_latency>\n" + 
-					    		"	</link>");
 					}
 				}
+				System.out.println("Creation of SINGLE_LAYER_VORONOI " + ConstantsClass.nodeXmlFile + " and " + ConstantsClass.linksXmlFile + " ends.\n");
 
-				tempList.add(new Double[] {(double)temp[0], (double)temp[1], (double)temp[2], (double)temp[3]});
-				counter++;
-			}
-			
-			prevCounter = counter;
+				break;
+			default:
+				// code to execute if no case matches (optional)
+				//String rawNode = null;
+				//String[] nodeLoc = new String[4];
+				//Double[] temp = new Double[4];
+				//int counter = 0;
+				//int prevCounter = 0;
+                List<Point3D> point3dList = new ArrayList<>();
+                Integer duplicateCount = 0;
+				for (int i = 0; i < MAX_LEVELS; i++) {
 
-			//move tempList to nodeList
+					try {
+						dataFR = new FileReader(files[i]);
+						dataBR = new BufferedReader(dataFR);
+					} catch (FileNotFoundException e) {
+					}
+					dataBR.readLine(); //Gets rid of title data
+					while (dataBR.ready()) {
 
-			// Include additional links among border routers
-			if(i == 2) // Universities fog layer
-			{
-				// For each university, find the nearest and second nearest and create links to the two identified ones. 
-				for(Double[] input : tempList)
-				{
-					double minDistance = Double.MAX_VALUE;
-					double secondminDistance = Double.MAX_VALUE;
-					int index1 = -1, index2 = -1;
-					double distance = 0;
-					
-					//Go through all nodes and find the closest
-					for(int j = 0; j < tempList.size(); j++)
-					{
+						rawNode = dataBR.readLine();
+						nodeLoc = rawNode.split(",");
+						temp[0] = (double) counter; //ID
+						temp[2] = Double.parseDouble(nodeLoc[1]); //Y Coord
+						temp[1] = Double.parseDouble(nodeLoc[2]); //X Coord
+						temp[3] = Double.parseDouble(nodeLoc[3]); //Altitude
+                        //if(point3dList.contains(new MyPoint3D((double)temp[1], (double)temp[2], (double)temp[3]))){
+                        double tolerance = 1e-9;
+                        if(point3dList.stream()
+                                .anyMatch(p -> p.distance(new Point3D((double)temp[1], (double)temp[2], (double)temp[3])) < tolerance)){
+                            duplicateCount++;
+                            System.out.println("Duplicate node " + temp[1] + " " + temp[2] + " " + temp[3]);
+                            System.out.println("Duplicate count: " + duplicateCount);
+                        }else{
+                            point3dList.add(new Point3D((double)temp[1], (double)temp[2], (double)temp[3]));
+                            //System.out.println("Size of point3dList: " + point3dList.size());
+                        }
 
-						distance = measure(tempList.get(j)[2], tempList.get(j)[1], tempList.get(j)[3], input[2], input[1], input[3]);
+						if (MAX_LONG == -100000 || temp[1] > MAX_LONG) MAX_LONG = temp[1];
+						if (MIN_LONG == -100000 || temp[1] < MIN_LONG) MIN_LONG = temp[1];
+						if (MAX_LAT == -100000 || temp[2] > MAX_LAT) MAX_LAT = temp[2];
+						if (MIN_LAT == -100000 || temp[2] < MIN_LAT) MIN_LAT = temp[2];
 
-						if(distance < minDistance && distance != 0)
-						{
-							secondminDistance = minDistance;
-							index2 = index1;
-							minDistance = distance;
-							index1 = j;
+						//Add to output file
+						node.println(String.format("\n<datacenter arch=\"%s\" os=\"%s\" vmm=\"%s\">", nodeSpecs[MAX_LEVELS - i - 1][0], nodeSpecs[MAX_LEVELS - i - 1][1], nodeSpecs[MAX_LEVELS - i - 1][2]));
+						node.println(String.format("\t<costPerBw>%s</costPerBw>\n\t<costPerSec>%s</costPerSec>\n\t<costPerMem>%s</costPerMem>\n\t<costPerStorage>%s</costPerStorage>", nodeSpecs[MAX_LEVELS - i - 1][3], nodeSpecs[MAX_LEVELS - i - 1][4], nodeSpecs[MAX_LEVELS - i - 1][5], nodeSpecs[MAX_LEVELS - i - 1][6]));
+						//Qian change level start from 1
+						node.println(String.format("\t<location>\n\t\t<x_pos>%s</x_pos>\n\t\t<y_pos>%s</y_pos>\n\t\t<altitude>%s</altitude>\n\t\t<level>%s</level>\n\t\t<wlan_id>%s</wlan_id>\n\t\t<wap>%s</wap>\n\t\t<moving>%s</moving>\n\t\t<bandwidth>%s</bandwidth>\n\t\t<dx>%s</dx>\n\t\t<dy>%s</dy>\n\t</location>", nodeLoc[2], nodeLoc[1], nodeLoc[3], MAX_LEVELS - i, counter, nodeSpecs[MAX_LEVELS - i - 1][7], nodeSpecs[MAX_LEVELS - i - 1][8], nodeSpecs[MAX_LEVELS - i - 1][13], nodeLoc[4], nodeLoc[5]));
+						node.println(String.format("\t<host>\n\t\t<core>%s</core>\n\t\t<mips>%s</mips>\n\t\t<ram>%s</ram>\n\t\t<storage>%s</storage>", nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
+						node.println(String.format("\t\t<VM vmm=\"%s\">\n\t\t\t<core>%s</core>\n\t\t\t<mips>%s</mips>\n\t\t\t<ram>%s</ram>\n\t\t\t<storage>%s</storage>\n\t\t</VM>\n\t</host>\n</datacenter>", nodeSpecs[MAX_LEVELS - i - 1][2], nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
+
+						//Make link to previous closest node on higher level
+						if (!nodeList.isEmpty()) {
+							double minDistance = Double.MAX_VALUE;
+							int index = -1;
+							double distance = 0;
+							//Go through all nodes one level up and find the closest
+							for (int j = 0; j < nodeList.size(); j++) {
+								distance = measure(nodeList.get(j)[2], nodeList.get(j)[1], nodeList.get(j)[3], temp[2], temp[1], temp[3]);
+								if (distance < minDistance) {
+									minDistance = distance;
+									index = j;
+								}
+							}
+							minDistance = Double.MAX_VALUE;
+							if (index >= 0) {
+								if (nodeList.get(index).equals(temp)) {
+									System.exit(0);
+								}
+								double dis = measure(temp[2], temp[1], temp[3], nodeList.get(index)[2], nodeList.get(index)[1], nodeList.get(index)[3]) / 1000;
+								double latency = dis * 0.01;
+								links.println("\t<link>\n" +
+										"		<name>L" + nodeList.get(index)[0] + "_" + temp[0] + "</name>\n" +
+										"		<left>\n" +
+										"			<x_pos>" + temp[1] + "</x_pos>\n" +
+										"			<y_pos>" + temp[2] + "</y_pos>\n" +
+										"			<altitude>" + temp[3] + "</altitude>\n" +
+										"		</left>\n" +
+										"		<right>\n" +
+										"			<x_pos>" + nodeList.get(index)[1] + "</x_pos>\n" +
+										"			<y_pos>" + nodeList.get(index)[2] + "</y_pos>\n" +
+										"			<altitude>" + nodeList.get(index)[3] + "</altitude>\n" +
+										"		</right>\n" +
+										"		<left_latency>" + latency + "</left_latency>\n" +
+										"		<right_latency>" + latency + "</right_latency>\n" +
+										"	</link>");
+							}
 						}
-						else if(distance < secondminDistance && distance != 0)
-						{
-							secondminDistance = distance;
-							index2 = j;
+
+						tempList.add(new Double[]{(double) temp[0], (double) temp[1], (double) temp[2], (double) temp[3]});
+						counter++;
+					}
+
+					prevCounter = counter;
+
+					//move tempList to nodeList
+
+					// Include additional links among border routers
+					if (i == 2) // Universities fog layer
+					{
+						// For each university, find the nearest and second nearest and create links to the two identified ones.
+						for (Double[] input : tempList) {
+							double minDistance = Double.MAX_VALUE;
+							double secondminDistance = Double.MAX_VALUE;
+							int index1 = -1, index2 = -1;
+							double distance = 0;
+
+							//Go through all nodes and find the closest
+							for (int j = 0; j < tempList.size(); j++) {
+
+								distance = measure(tempList.get(j)[2], tempList.get(j)[1], tempList.get(j)[3], input[2], input[1], input[3]);
+
+								if (distance < minDistance && distance != 0) {
+									secondminDistance = minDistance;
+									index2 = index1;
+									minDistance = distance;
+									index1 = j;
+								} else if (distance < secondminDistance && distance != 0) {
+									secondminDistance = distance;
+									index2 = j;
+								}
+							}
+							minDistance = Double.MAX_VALUE;
+							secondminDistance = Double.MAX_VALUE;
+							if (index1 >= 0) {
+								if (tempList.get(index1).equals(temp)) {
+									System.exit(0);
+								}
+								double dis = measure(input[2], input[1], input[3], tempList.get(index1)[2], tempList.get(index1)[1], tempList.get(index1)[3]) / 1000;
+								double latency = dis * 0.01;
+								links.println("\t<link>\n" +
+										"		<name>L" + tempList.get(index1)[0] + "_" + input[0] + "</name>\n" +
+										"		<left>\n" +
+										"			<x_pos>" + input[1] + "</x_pos>\n" +
+										"			<y_pos>" + input[2] + "</y_pos>\n" +
+										"			<altitude>" + input[3] + "</altitude>\n" +
+										"		</left>\n" +
+										"		<right>\n" +
+										"			<x_pos>" + tempList.get(index1)[1] + "</x_pos>\n" +
+										"			<y_pos>" + tempList.get(index1)[2] + "</y_pos>\n" +
+										"			<altitude>" + tempList.get(index1)[3] + "</altitude>\n" +
+										"		</right>\n" +
+										"		<left_latency>" + latency + "</left_latency>\n" +
+										"		<right_latency>" + latency + "</right_latency>\n" +
+										"	</link>");
+							}
+							if (index2 >= 0) {
+								if (tempList.get(index2).equals(temp)) {
+									System.exit(0);
+								}
+								double dis = measure(input[2], input[1], input[3], tempList.get(index2)[2], tempList.get(index2)[1], tempList.get(index2)[3]) / 1000;
+								double latency = dis * 0.01;
+								links.println("\t<link>\n" +
+										"		<name>L" + tempList.get(index2)[0] + "_" + input[0] + "</name>\n" +
+										"		<left>\n" +
+										"			<x_pos>" + input[1] + "</x_pos>\n" +
+										"			<y_pos>" + input[2] + "</y_pos>\n" +
+										"			<altitude>" + input[3] + "</altitude>\n" +
+										"		</left>\n" +
+										"		<right>\n" +
+										"			<x_pos>" + tempList.get(index2)[1] + "</x_pos>\n" +
+										"			<y_pos>" + tempList.get(index2)[2] + "</y_pos>\n" +
+										"			<altitude>" + tempList.get(index2)[3] + "</altitude>\n" +
+										"		</right>\n" +
+										"		<left_latency>" + latency + "</left_latency>\n" +
+										"		<right_latency>" + latency + "</right_latency>\n" +
+										"	</link>");
+							}
 						}
 					}
-					minDistance = Double.MAX_VALUE;
-					secondminDistance = Double.MAX_VALUE;
-					if(index1 >= 0)
-					{
-						if(tempList.get(index1).equals(temp)) 
-						{
-							System.exit(0);
+
+					// Save the list of universities.
+					if (i == 2) {
+						universitiesList.clear();
+						for (Double[] input : tempList) {
+							universitiesList.add(new Double[]{(double) input[0], (double) input[1], (double) input[2], (double) input[3]});
 						}
-						double dis = measure(input[2], input[1], input[3], tempList.get(index1)[2], tempList.get(index1)[1], tempList.get(index1)[3]) / 1000;
-						double latency = dis * 0.01;
-						links.println("\t<link>\n" + 
-					    		"		<name>L" + tempList.get(index1)[0] + "_" + input[0] + "</name>\n" + 
-						   		"		<left>\n" + 
-					    		"			<x_pos>" + input[1] + "</x_pos>\n" + 
-						   		"			<y_pos>" + input[2] + "</y_pos>\n" + 
-					   			"			<altitude>" + input[3] + "</altitude>\n" +
-						   		"		</left>\n" + 
-						   		"		<right>\n" + 
-						    	"			<x_pos>" + tempList.get(index1)[1] + "</x_pos>\n" + 
-						   		"			<y_pos>" + tempList.get(index1)[2] + "</y_pos>\n" + 
-						   		"			<altitude>" + tempList.get(index1)[3] + "</altitude>\n" +
-						   		"		</right>\n" + 
-						   		"		<left_latency>"+latency+"</left_latency>\n" + 
-						   		"		<right_latency>"+latency+"</right_latency>\n" + 
-						   		"	</link>");
-						}
-					if(index2 >= 0)
-					{
-						if(tempList.get(index2).equals(temp)) 
-						{
-							System.exit(0);
-						}
-						double dis = measure(input[2], input[1], input[3], tempList.get(index2)[2], tempList.get(index2)[1], tempList.get(index2)[3]) / 1000;
-						double latency = dis * 0.01;
-						links.println("\t<link>\n" + 
-					    		"		<name>L" + tempList.get(index2)[0] + "_" + input[0] + "</name>\n" + 
-						   		"		<left>\n" + 
-					    		"			<x_pos>" + input[1] + "</x_pos>\n" + 
-						   		"			<y_pos>" + input[2] + "</y_pos>\n" +
-						   		"			<altitude>" + input[3] + "</altitude>\n" +
-						   		"		</left>\n" + 
-						   		"		<right>\n" + 
-						    	"			<x_pos>" + tempList.get(index2)[1] + "</x_pos>\n" + 
-						   		"			<y_pos>" + tempList.get(index2)[2] + "</y_pos>\n" +
-						   		"			<altitude>" + tempList.get(index2)[3] + "</altitude>\n" +
-						   		"		</right>\n" + 
-						   		"		<left_latency>"+latency+"</left_latency>\n" + 
-						   		"		<right_latency>"+latency+"</right_latency>\n" + 
-						   		"	</link>");
+						universitiesCircle.clear();
 					}
-				}
+
+					// Qian - create universities circle to let Connect centers and Schools to connect to nearest University / Ward / Library.
+					if (i == 2 || i == 3 || i == 4) {
+						for (Double[] input : tempList) {
+							universitiesCircle.add(new Double[]{(double) input[0], (double) input[1], (double) input[2], (double) input[3]});
+						}
+					}
+
+					// If the next set of nodes are Wards / Libraries, link to nearest university.
+					if (i == 2 || i == 3) {
+						nodeList.clear();
+						for (Double[] input : universitiesList) {
+							nodeList.add(new Double[]{(double) input[0], (double) input[1], (double) input[2], (double) input[3]});
+						}
+					}
+
+					// If the next set of nodes are Connect centers / Schools, use universities circle as next higher layer.
+					else if (i == 4 || i == 5) {
+						nodeList.clear();
+						for (Double[] input : universitiesCircle) {
+							nodeList.add(new Double[]{(double) input[0], (double) input[1], (double) input[2], (double) input[3]});
+						}
+					}
+
+					// else link to a nearest node of next higher layer
+					else {
+						nodeList.clear();
+						for (Double[] input : tempList) {
+							nodeList.add(new Double[]{(double) input[0], (double) input[1], (double) input[2], (double) input[3]});
+						}
+					}
+
+					// Prepare to process info for next layer fog nodes
+					tempList.clear();
+
+
+				}// end - for MAX_LEVELS
+		}
+		if (!scenario.equalsIgnoreCase("")) {
+
+		}
+		else {
 			}
 
-			// Save the list of universities.
-			if(i == 2) { 
-				universitiesList.clear();
-				for(Double[] input : tempList) 	{
-					universitiesList.add(new Double[] {(double)input[0], (double)input[1], (double)input[2], (double)input[3]});
-				}
-				universitiesCircle.clear();
-			}
-
-			// Qian - create universities circle to let Connect centers and Schools to connect to nearest University / Ward / Library.
-			if(i == 2 || i == 3 || i == 4) { 
-				for(Double[] input : tempList) 	{
-					universitiesCircle.add(new Double[] {(double)input[0], (double)input[1], (double)input[2], (double)input[3]});
-				}
-			}
-			
-			// If the next set of nodes are Wards / Libraries, link to nearest university.
-			if (i == 2 || i==3) { 
-				nodeList.clear();
-				for(Double[] input : universitiesList) 	{
-					nodeList.add(new Double[] {(double)input[0], (double)input[1], (double)input[2], (double)input[3]});
-				}
-			}
-
-			// If the next set of nodes are Connect centers / Schools, use universities circle as next higher layer.
-			else if (i == 4 || i==5) { 
-				nodeList.clear();
-				for(Double[] input : universitiesCircle) 	{
-					nodeList.add(new Double[] {(double)input[0], (double)input[1], (double)input[2], (double)input[3]});
-				}
-			}
-			
-			// else link to a nearest node of next higher layer
-			else{
-				nodeList.clear();
-				for(Double[] input : tempList) 	{
-					nodeList.add(new Double[] {(double)input[0], (double)input[1], (double)input[2], (double)input[3]});
-				}
-			}
-			
-			// Prepare to process info for next layer fog nodes
-			tempList.clear();
-			
-
-		}// end - for MAX_LEVELS
-		
 		node.println("</edge_devices>");
 		links.println("</links>");
 		node.close();
@@ -315,15 +471,33 @@ public class DataInterpreter {
 
 		return;
 	}
-	
+
+	public static HashMap<Point, List<Point>> convertFromXYToLongLat(HashMap<Point, List<Point>> inputHashMapXY){
+		HashMap<Point, List<Point>> retHashMap = new HashMap<>();
+		for (Map.Entry<Point, List<Point>> entry : inputHashMapXY.entrySet()) {
+			Point key = entry.getKey();
+			Integer keyId = sitesXYBidiMap.getKey(key);
+			Point keyLongLat = sitesLongLatBidiMap.get(keyId);
+			List<Point> value = entry.getValue();
+			List<Point> valueLongLat = new ArrayList<>(); ;
+			for(Point val:value){
+				//System.out.println(val+": "+sitesLongLatBidiMap.get(sitesXYBidiMap.getKey(val)));
+				valueLongLat.add(sitesLongLatBidiMap.get(sitesXYBidiMap.getKey(val)));
+			}
+			retHashMap.put(keyLongLat, valueLongLat);
+			//System.out.println("KeyId-Key(KeyLongLat): " + keyId+"-"+key + keyLongLat+", Value: " + value);
+			//System.out.println("KeyLongLat: " + keyLongLat+", Value: " + value);
+		}
+		return retHashMap;
+	}
 	
 	/**
 	 * Constructor
 	 * @throws IOException
 	 */
-	public DataInterpreter() throws IOException {
+	public DataInterpreter(Integer iterationNumber) throws IOException {
 		initialize();
-		readFile();
+		readFile(iterationNumber);
 	}
 	
 	
@@ -402,7 +576,8 @@ public class DataInterpreter {
 		
 		try {
 
-			String propertiesFile = "scripts/sample_application/config/default_config.properties";
+			//String propertiesFile = "scripts/sample_application/config/default_config.properties"; // Commented by sks0099 on 06/25/2025
+			String propertiesFile = ConstantsClass.propertiesFile; // Added by sks0099 on 06/25/2025
 			InputStream input = new FileInputStream(propertiesFile);
 			Properties prop = new Properties();
 			prop.load(input);

@@ -81,7 +81,7 @@ public class IdleActiveLoadGenerator extends LoadGeneratorModel{
 				}
 			}
 			if(randomTaskType == null){
-				SimLogger.printLine("Impossible is occured! no random task type!");
+				SimLogger.printLine("Impossible has occurred! no random task type!");
 				continue;
 			}
 			
@@ -97,7 +97,7 @@ public class IdleActiveLoadGenerator extends LoadGeneratorModel{
 				double interval = rngDistribution.sample();
 
 				if(interval <= 0){
-					SimLogger.printLine("Impossible is occured! interval is " + interval + " for device " + i + " time " + virtualTime);
+					SimLogger.printLine("Impossible has occurred! interval is " + interval + " for device " + i + " time " + virtualTime);
 					continue;
 				}
 				virtualTime += interval;

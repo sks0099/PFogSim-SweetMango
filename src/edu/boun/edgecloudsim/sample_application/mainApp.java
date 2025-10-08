@@ -47,8 +47,20 @@ public class mainApp {
 
 		//enable console output and file output of this application
 		SimLogger.enablePrintLog();
-		
-		int iterationNumber = 1; // index for the list of n scenarios in properties file is from 0..n-1
+
+		//int simulation_type = 1; // 100 - 600 mobile devices
+		//int simulation_type = 2; // 1000 - 6000 mobile devices
+		Boolean useExistingNetworkTopologyInAllIterations = true;
+		String simulation_result_folder = "sim_results";
+
+		//int iterationNumber = 1; // index for the list of n scenarios in properties file is from 0..n-1
+		int iterationNumber = 9; // index for the list of n scenarios in properties file is from 0..n-1
+		//DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+		//Date SimulationStartDate = Calendar.getInstance().getTime();
+		//String now = df.format(SimulationStartDate);
+		//for(int iterationNumber = 0; iterationNumber<10; iterationNumber++){
+		System.out.println("Iteration Number started: "+iterationNumber);
+		System.out.println("====================================="+"\n\n");
 		String configFile = "";
 		String outputFolder = "";
 		String outFolder2 = "";
@@ -64,37 +76,62 @@ public class mainApp {
 			applicationsFile = args[2];
 			outputFolder = args[3];
 			iterationNumber = Integer.parseInt(args[4]);
-			outFolder2 = "sim_results/consoleruns";
+			//outFolder2 = "sim_results/consoleruns";
 		}
 		else{
-			
+
 			configFile = "scripts/sample_application/config/default_config.properties";
 			applicationsFile = "scripts/sample_application/config/applications.xml";
 			//edgeDevicesFile = "scripts/sample_application/config/edge_devices_test.xml";
 			//edgeDevicesFile = "small_node_test.xml";
 			edgeDevicesFile = "node_test.xml";
-			outputFolder = "sim_results/ite" + iterationNumber;
-			outFolder2 = "sim_results/consoleruns";
+            //sks0099 moved the following commented block on 20250925
+			/*outputFolder = simulation_result_folder+"/ite" + iterationNumber;
+			outFolder2 = simulation_result_folder+"/consoleruns";
 			SimLogger.fileInitialize(outFolder2);
-			SimLogger.printLine("Simulation setting file, output folder and iteration number are not provided! Using default ones...");
+			SimLogger.printLine("Simulation setting file, output folder and iteration number are not provided! Using default ones...");*/
 		}
 
 		DataInterpreter.initialize();
-		try {
-			DataInterpreter.readFile();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if(useExistingNetworkTopologyInAllIterations) {
+			try {
+				// Arg iterationNumber added by sks0099 on 8/15/25 to create different links file
+				// while using the DataInterpreter function readFile
+
+				DataInterpreter.readFile(0);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}else{
+			try {
+				// Arg iterationNumber added by sks0099 on 8/15/25 to create different links file
+				// while using the DataInterpreter function readFile
+
+				DataInterpreter.readFile(iterationNumber); } catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-		
-		
+
+
 		//load settings from configuration file
 		SimSettings SS = SimSettings.getInstance();
 		if(SS.initialize(configFile, edgeDevicesFile, applicationsFile, linksFile) == false){
 			SimLogger.printLine("cannot initialize simulation settings!");
 			System.exit(0);
 		}
-		
+        // sks0099 added the following if block to automate the selection of folder for simulation results on 20250925
+        if(SS.getMinNumOfMobileDev() < 1000) {
+            simulation_result_folder = "sim_results_100_600";
+        }
+
+        // sks0099 moved the following 4 lines on 20250925
+        outputFolder = simulation_result_folder+"/ite" + iterationNumber;
+        outFolder2 = simulation_result_folder+"/consoleruns";
+        SimLogger.fileInitialize(outFolder2);
+        SimLogger.printLine("Simulation setting file, output folder and iteration number are not provided! Using default ones...");
+
 		if(SS.getFileLoggingEnabled()){
 			SimLogger.enableFileLog();
 			outputFolder = SimUtils.createOutputFolder(outputFolder);
@@ -102,8 +139,8 @@ public class mainApp {
 		SS.setSimulationSpace(DataInterpreter.getSimulationSpace());
 		SS.setMaxLevels(DataInterpreter.getMaxLevels());
 		SS.setInputType(DataInterpreter.getInputType());
-		SS.setMobileDevicesMoving(SS.getMovingDevices()); 
-		
+		SS.setMobileDevicesMoving(SS.getMovingDevices());
+
 		DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 		Date SimulationStartDate = Calendar.getInstance().getTime();
 		String now = df.format(SimulationStartDate);
@@ -120,16 +157,16 @@ public class mainApp {
 						SimLogger.printLine("Iteration Number " + iterationNumber + " hasn't been implemented yet.");
 						System.exit(0);
 					}
-					String simScenario = SS.getSimulationScenarios()[iterationNumber]; // 9 is the count of scenarios in properties file. 
+					String simScenario = SS.getSimulationScenarios()[iterationNumber]; // 9 is the count of scenarios in properties file.
 					String orchestratorPolicy = SS.getOrchestratorPolicies()[i];
 					Date ScenarioStartDate = Calendar.getInstance().getTime();
 					now = df.format(ScenarioStartDate);
-					
+
 					SimLogger.printLine("Scenario started at " + now);
 					SimLogger.printLine("Scenario: " + simScenario + " - Policy: " + orchestratorPolicy + " - #iteration: " + iterationNumber);
 					SimLogger.printLine("Duration: " + SS.getSimulationTime()/3600 + " hour(s) - Poisson: " + SS.getTaskLookUpTable()[0][2] + " - #devices: " + iteMobileDevices);
 					SimLogger.getInstance().simStarted(outputFolder,"SIMRESULT_" + simScenario + "_"  + orchestratorPolicy + "_" + iteMobileDevices + "DEVICES");
-					
+
 					try
 					{
 						// First step: Initialize the CloudSim package. It should be called
@@ -137,7 +174,7 @@ public class mainApp {
 						int num_user = 2;   // number of grid users
 						Calendar calendar = Calendar.getInstance();
 						boolean trace_flag = false;  // mean trace events
-				
+
 						// Initialize the CloudSim library
 						CloudSim.init(num_user, calendar, trace_flag, 0.01);
 						SimLogger.printLine("CloudSim.init reached");
@@ -156,7 +193,7 @@ public class mainApp {
 						e.printStackTrace();
 						System.exit(0);
 					}
-					
+
 					Date ScenarioEndDate = Calendar.getInstance().getTime();
 					now = df.format(ScenarioEndDate);
 					SimLogger.printLine("Scenario finished at " + now +  ". It took " + SimUtils.getTimeDifference(ScenarioStartDate,ScenarioEndDate));
@@ -164,6 +201,7 @@ public class mainApp {
 				}//End of orchestrators loop
 			}//End of scenarios loop
 		}//End of mobile devices loop
+		//}
 
 		Date SimulationEndDate = Calendar.getInstance().getTime();
 		now = df.format(SimulationEndDate);

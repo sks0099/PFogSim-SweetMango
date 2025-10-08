@@ -32,6 +32,7 @@ import java.io.PrintStream;
 import edu.auburn.pFogSim.netsim.ESBModel;
 import edu.auburn.pFogSim.netsim.NodeSim;
 import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
+import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
 import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
@@ -1112,6 +1113,10 @@ SimSettings.DELIMITER;
 		
 		printLine("Mobile Devices Moving? : " + SimSettings.getInstance().areMobileDevicesMoving());
 		printLine("# of tasks: " + (failedTask[numOfAppTypes] + completedTask[numOfAppTypes]));
+        if(SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiSingleLayerOrchestrator){
+            printLine("# of mobile devices not assigned host: " + SimManager.getInstance().getEdgeOrchestrator().getUnassignedMobileDeviceCount());
+        }
+
 		
 		// Do not provide info regarding warmup tasks; Commenting line below. - Shaik modified
 		printLine("# of warm up tasks: "+ warmUpTasks);
@@ -1133,11 +1138,17 @@ SimSettings.DELIMITER;
 				+ "/" + rejectedTaskDueToUnacceptableLatency[numOfAppTypes]);
 	
 		// Shaik added
-		printLine("Submitted tasks: "
+		/*printLine("Submitted tasks: "
 				+ (failedTask[numOfAppTypes] + completedTask[numOfAppTypes]+ uncompletedTask[numOfAppTypes] ) 
 				+" ( Completed:" + completedTask[numOfAppTypes] 
 				+ " / Failed:" + failedTask[numOfAppTypes] 
-				+ " / Uncompleted:" + uncompletedTask[numOfAppTypes] );
+				+ " / Uncompleted:" + uncompletedTask[numOfAppTypes] );*/
+		// Modified by sks0099 on 20250830
+		printLine("Submitted tasks: "
+				+ (failedTask[numOfAppTypes] + completedTask[numOfAppTypes]+ uncompletedTask[numOfAppTypes] )
+				+" (Complete:" + completedTask[numOfAppTypes]
+				+ " / Failed:" + failedTask[numOfAppTypes]
+				+ " / Incomplete:" + uncompletedTask[numOfAppTypes] +")");
 
 		printLine("percentage of failed tasks: "
 				+ String.format("%.6f", ((double) failedTask[numOfAppTypes] * (double) 100)
