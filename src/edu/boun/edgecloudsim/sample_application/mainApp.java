@@ -53,6 +53,7 @@ public class mainApp {
 		Boolean useExistingNetworkTopologyInAllIterations = true;
 		String simulation_result_folder = "sim_results";
 
+        // 0 for HAFA, 9 for SLV
 		//int iterationNumber = 1; // index for the list of n scenarios in properties file is from 0..n-1
 		int iterationNumber = 9; // index for the list of n scenarios in properties file is from 0..n-1
 		//DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");

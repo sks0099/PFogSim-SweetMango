@@ -52,7 +52,8 @@ public class EdgeHost extends Host {
 	private ArrayList<EdgeHost> children = null;//Qian: added for puddle
 	private double reserveBW;//Qian: added for service replacement
 	private long reserveMips;//Qian: added for service replacement
-	private ArrayList<MobileDevice> customers;//Qian: added for service replacement 
+	private ArrayList<MobileDevice> customers;//Qian: added for service replacement
+    private int hop;// sks0099 added for assessing search performance of an orchestrator
 	private int searchHop;// sks0099 added for assessing search performance of an orchestrator
 	
 	/**
@@ -503,6 +504,14 @@ public class EdgeHost extends Host {
 	public double getFnNwUtilization() {
 		return (reserveBW * ONE_HUNDRED_PERCENT / this.getBw());
 	}
+
+    public void setHop(int _hop) {
+        this.hop = _hop;
+    }
+
+    public int getHop(){
+        return this.hop;
+    }
 
     public void setSearchHop(int _searchHop) {
         this.searchHop = _searchHop;

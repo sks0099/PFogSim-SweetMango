@@ -442,9 +442,19 @@ public class SimLogger {
 	public void simStopped() throws IOException {
 		int numOfAppTypes = SimSettings.getInstance().getTaskLookUpTable().length;
 
-		File successFile = null, failFile = null, vmLoadFile = null, fnMipsUtilFile = null, fnNwUtilFile = null, locationFile = null, distFile = null, distBackFile = null, hopFile = null, hopsBackFile = null, hafaNumHostsFile = null, hafaNumMsgsFile = null, hafaNumPuddlesFile = null, energyUsageFile = null;
-		FileWriter successFW = null, failFW = null, vmLoadFW = null, fnMipsUtilFW = null, fnNwUtilFW = null, locationFW = null, distFW = null, distBackFW = null, hopFW = null, hopsBackFW = null, hafaNumHostsFW = null, hafaNumMsgsFW = null, hafaNumPuddlesFW = null, energyUsageFW = null;
-		BufferedWriter successBW = null, failBW = null, vmLoadBW = null, fnMipsUtilBW = null, fnNwUtilBW = null, locationBW = null, distBW = null, distBackBW = null, hopBW = null, hopsBackBW = null, hafaNumHostsBW = null, hafaNumMsgsBW = null, hafaNumPuddlesBW = null, energyUsageBW = null;
+		File successFile = null, failFile = null, vmLoadFile = null, fnMipsUtilFile = null, fnNwUtilFile = null, locationFile = null, distFile = null,
+                distBackFile = null, hopFile = null, hopsBackFile = null,
+                hafaNumHostsFile = null, hafaNumMsgsFile = null, hafaNumPuddlesFile = null,
+                slvNumHostsFile = null, slvNumMsgsFile = null, slvNumHostsSearchedFile = null,
+                energyUsageFile = null;
+		FileWriter successFW = null, failFW = null, vmLoadFW = null, fnMipsUtilFW = null, fnNwUtilFW = null, locationFW = null, distFW = null,
+                distBackFW = null, hopFW = null, hopsBackFW = null,
+                hafaNumHostsFW = null, hafaNumMsgsFW = null, hafaNumPuddlesFW = null,
+                slvNumHostsFW = null, slvNumMsgsFW = null, slvNumHostsSearchedFW = null, energyUsageFW = null;
+		BufferedWriter successBW = null, failBW = null, vmLoadBW = null, fnMipsUtilBW = null, fnNwUtilBW = null, locationBW = null, distBW = null,
+                distBackBW = null, hopBW = null, hopsBackBW = null,
+                hafaNumHostsBW = null, hafaNumMsgsBW = null, hafaNumPuddlesBW = null,
+                slvNumHostsBW = null, slvNumMsgsBW = null, slvNumHostsSearchedBW = null, energyUsageBW = null;
 
 		/*File[] vmLoadFileClay = new File[numOfAppTypes]; 
 		FileWriter[] vmLoadFWClay = new FileWriter[numOfAppTypes];
@@ -568,6 +578,18 @@ public class SimLogger {
 			hafaNumPuddlesFile = new File(outputFolder, filePrefix + "_NUMPUDDLES.log");
 			hafaNumPuddlesFW = new FileWriter(hafaNumPuddlesFile, true);
 			hafaNumPuddlesBW = new BufferedWriter(hafaNumPuddlesFW);
+
+            slvNumHostsFile = new File(outputFolder, filePrefix + "_NUMHOSTS.log");
+            slvNumHostsFW = new FileWriter(slvNumHostsFile, true);
+            slvNumHostsBW = new BufferedWriter(slvNumHostsFW);
+
+            slvNumMsgsFile = new File(outputFolder, filePrefix + "_NUMMSGS.log");
+            slvNumMsgsFW = new FileWriter(slvNumMsgsFile, true);
+            slvNumMsgsBW = new BufferedWriter(slvNumMsgsFW);
+
+            slvNumHostsSearchedFile = new File(outputFolder, filePrefix + "_NUMHOSTSSEARCHED.log");
+            slvNumHostsSearchedFW = new FileWriter(slvNumHostsSearchedFile, true);
+            slvNumHostsSearchedBW = new BufferedWriter(slvNumHostsSearchedFW);
 			
 			energyUsageFile = new File(outputFolder, filePrefix + "_ENERGY_USAGE.log");
 			energyUsageFW = new FileWriter(energyUsageFile, true);
@@ -871,6 +893,7 @@ public class SimLogger {
 		int[] numProsHosts = new int[devCount];
 		int[] numMsgs = new int[devCount];
 		int[] numPuds = new int[devCount];
+        int[] numHostsSearched = new int[devCount];
 
 		
 		if (SimManager.getInstance().getEdgeOrchestrator() instanceof HAFAOrchestrator ) {
@@ -887,6 +910,21 @@ public class SimLogger {
 				appendToFile(hafaNumPuddlesBW, Integer.toString(numPuds[i]) + SimSettings.DELIMITER);
 			}			
 		}
+
+        if (SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiSingleLayerOrchestrator ) {
+
+            // Retrieve information regarding # of hosts, msgs, & Puddles for each service request (device)
+            numProsHosts = SimManager.getInstance().getEdgeOrchestrator().getNumProspectiveHosts();
+            numMsgs = SimManager.getInstance().getEdgeOrchestrator().getNumMessages();
+            numHostsSearched = SimManager.getInstance().getEdgeOrchestrator().getNumHostsSearched();
+
+            // Print info to corresponding files
+            for (int i=0; i<devCount; i++) {
+                appendToFile(slvNumHostsBW, Integer.toString(numProsHosts[i]) + SimSettings.DELIMITER);
+                appendToFile(slvNumMsgsBW, Integer.toString(numMsgs[i]) + SimSettings.DELIMITER);
+                appendToFile(slvNumHostsSearchedBW, Integer.toString(numHostsSearched[i]) + SimSettings.DELIMITER);
+            }
+        }
 		
 		
 //		//Qian Write require data into file
@@ -1099,6 +1137,9 @@ SimSettings.DELIMITER;
 			hafaNumHostsBW.close();
 			hafaNumMsgsBW.close();
 			hafaNumPuddlesBW.close();
+            slvNumHostsBW.close();
+            slvNumMsgsBW.close();
+            slvNumHostsSearchedBW.close();
 			energyUsageBW.close();
 			
 			for (int i = 0; i < numOfAppTypes + 1; i++) {
@@ -1113,8 +1154,14 @@ SimSettings.DELIMITER;
 		
 		printLine("Mobile Devices Moving? : " + SimSettings.getInstance().areMobileDevicesMoving());
 		printLine("# of tasks: " + (failedTask[numOfAppTypes] + completedTask[numOfAppTypes]));
+
+        if(SimManager.getInstance().getEdgeOrchestrator() instanceof HAFAOrchestrator){
+            printLine("# of mobile devices assigned to cloud: " + SimManager.getInstance().getEdgeOrchestrator().getUnassignedMobileDeviceCount());
+        }
+
         if(SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiSingleLayerOrchestrator){
-            printLine("# of mobile devices not assigned host: " + SimManager.getInstance().getEdgeOrchestrator().getUnassignedMobileDeviceCount());
+            printLine("# of mobile devices assigned to cloud: " + SimManager.getInstance().getEdgeOrchestrator().getAssignedToCloudMobileDeviceCount());
+            printLine("# of mobile devices not assigned to any host: " + SimManager.getInstance().getEdgeOrchestrator().getUnassignedMobileDeviceCount());
         }
 
 		
@@ -1245,6 +1292,10 @@ SimSettings.DELIMITER;
 			double averageNumPuddles = SimManager.getInstance().getEdgeOrchestrator().getAvgNumPuddlesSearched();
 			printLine("Average number of Puddles searched for placement: " + String.format("%.2f", averageNumPuddles));
 		}
+        if (SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiSingleLayerOrchestrator) {
+            double averageNumHostsSearched = SimManager.getInstance().getEdgeOrchestrator().getAvgNumHostsSearched();
+            printLine("Average number of Hosts searched for placement: " + String.format("%.2f", averageNumHostsSearched));
+        }
 		
 
 		// Ziyan modified - round the node utilization figures to the second decimal place

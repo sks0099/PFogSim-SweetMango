@@ -61,8 +61,10 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	File hafaNumHostsFile = null, hafaNumMsgsFile = null, hafaNumPuddlesFile = null;
 	FileWriter hafaNumHostsFW = null, hafaNumMsgsFW = null, hafaNumPuddlesFW = null;
 	BufferedWriter hafaNumHostsBW = null, hafaNumMsgsBW = null, hafaNumPuddlesBW = null;
-	
-	
+
+    // unassignedMobileDeviceCount added by sks0099 to keep track of the number of mobile devices that could
+    // not be assigned a host.
+    public int unassignedMobileDeviceCount; //
 	/**
 	 * constructor
 	 * @param _policy
@@ -103,7 +105,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	 */
 	@Override
 	public void initialize() {
-		
+        unassignedMobileDeviceCount = 0; // sks0099 added this line on 10/12/2025
 		allHosts = new ArrayList<EdgeHost>();
 		for (Datacenter node : SimManager.getInstance().getLocalServerManager().getDatacenterList()) {
 			allHosts.add(((EdgeHost) node.getHostList().get(0)));
@@ -420,6 +422,7 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 		//Find a cost-optimal node with available resources
 		if (hostsSortedByCost.size() == 0) {
 			System.out.println("  Mobile device: "+mobile.getId()+"  WAP: "+mobile.getLocation().getServingWlanId()+"  Assigned host:  NULL");
+            unassignedMobileDeviceCount++;
 			return;
 		}
 		
@@ -427,7 +430,8 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 		selHost = hostsSortedByCost.poll();
 		if (selHost == null) {
 			System.out.println("  Mobile device: "+mobile.getId()+"  WAP: "+mobile.getLocation().getServingWlanId()+"  Assigned host:  NULL");
-			return;
+            unassignedMobileDeviceCount++;
+            return;
 		}
 		
 		System.out.print("Prospective host:  ");
@@ -443,6 +447,10 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 			mobile.setHost(selHost);
 			mobile.makeReservation();
 			System.out.println("  Assigned host: " + selHost.getId());
+            if(selHost.getId() == 0){
+                System.out.println("  Assigned host: " + selHost.getId());
+                unassignedMobileDeviceCount++;
+            }
 			// Following line added by sks0099 on 09/13/2025
 			mobileHostAssignment.put(mobile, selHost);
 			// Following line added by sks0099 on 09/13/2025
@@ -456,8 +464,10 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 				SimLogger.printLine("Host location is: ("+selHost.getLocation().getXPos()+","+selHost.getLocation().getYPos()+")");
 			}
 		}
-		else
-			System.out.println("  Mobile device: "+mobile.getId()+"  WAP: "+mobile.getLocation().getServingWlanId()+"  Assigned host:  NULL");
+		else {
+            System.out.println("  Mobile device: " + mobile.getId() + "  WAP: " + mobile.getLocation().getServingWlanId() + "  Assigned host:  NULL");
+            unassignedMobileDeviceCount++;
+        }
 
 		return;
 	}
@@ -466,5 +476,9 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 	public HashMap<MobileDevice, EdgeHost> getMobileAssignment(){
 		return mobileHostAssignment;
 	}
+
+    public int getUnassignedMobileDeviceCount(){
+        return unassignedMobileDeviceCount;
+    }
 	
 }// end class HAFAOrchestrator

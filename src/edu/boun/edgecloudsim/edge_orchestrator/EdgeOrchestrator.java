@@ -233,6 +233,10 @@ public abstract class EdgeOrchestrator {
 	public double getAvgNumPuddlesSearched() {
 		return 0.0;
 	}
+
+    public double getAvgNumHostsSearched() {
+        return 0.0;
+    }
 	
 	/**
 	 * Return detailed metrics of HAFA orchestrator - Number of prospective hosts per service request (device)
@@ -251,9 +255,15 @@ public abstract class EdgeOrchestrator {
 	 */
 	public int[] getNumPuddlesSearched() { return null; }
 
+    public int[] getNumHostsSearched() { return null; }
+
 	public HashMap<MobileDevice, EdgeHost> getMobileAssignment(){ return null;}
 
     public int getUnassignedMobileDeviceCount() {	return 0; }
 
+    public double getAverageHops() { return 0; }
+
     public double getAverageSearchHops() { return 0; }
+
+    public int getAssignedToCloudMobileDeviceCount(){ return 0; }
 }

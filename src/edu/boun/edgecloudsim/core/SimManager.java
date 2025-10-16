@@ -153,7 +153,36 @@ public class SimManager extends SimEntity {
 		for (MobileDevice mobile: mobileDeviceManager.getMobileDevices()) {
 			edgeOrchestrator.assignHost(mobile);
 		}
-		if(edgeOrchestrator instanceof VoronoiSingleLayerOrchestrator || edgeOrchestrator instanceof HAFAOrchestrator){
+        if(edgeOrchestrator instanceof HAFAOrchestrator){
+//            HashMap<MobileDevice, EdgeHost> mobileHostAssigned = new HashMap<>();
+//            mobileHostAssigned = edgeOrchestrator.getMobileAssignment();
+//            // Create a TreeMap from the HashMap
+//            BidiMap<Integer, MobileDevice> bdMobileDevice = new DualHashBidiMap<>();
+//            BidiMap<Integer, EdgeHost> bdEdgeHost = new DualHashBidiMap<>();
+//            TreeMap<Integer, Integer> sortedMap = new TreeMap<>();
+//            for (Map.Entry<MobileDevice, EdgeHost> entry : mobileHostAssigned.entrySet()) {
+//                //System.out.println(entry.getKey() + ": " + entry.getKey().getId());
+//                bdMobileDevice.put(entry.getKey().getId(), entry.getKey());
+//                bdEdgeHost.put(entry.getValue().getId(), entry.getValue());
+//                sortedMap.put(entry.getKey().getId(), entry.getValue().getId());
+//            }
+//            //System.out.println("Sorted Map by Key (TreeMap):");
+//            //for (Map.Entry<MobileDevice, EdgeHost> entry : sortedMap.entrySet()) {
+//            //	System.out.println(entry.getKey() + ": " + entry.getValue());
+//            //}
+//            //mobileHostAssigned.forEach((key, value) -> System.out.println(key.getId() + ": " + value.getId()+","+value.getTotalMips()+","+value.getAvailableMips()+","+value.getReserveMips()));
+//            //mobileHostAssigned.forEach((key, value) -> SimLogger.printLine(key.getId() + ": " + value.getId()+","+value.getTotalMips()+","+value.getAvailableMips()+","+value.getReserveMips()));
+//            System.out.println("Mobile Device Id: Assigned Host Id, Total MIPS, Reserved MIPS, Hops, Search hops:");
+//            sortedMap.forEach((key, value) -> System.out.println(key + ": " + value +","+bdEdgeHost.get(value).getTotalMips()+","
+//                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
+//            sortedMap.forEach((key, value) -> SimLogger.printLine(key + ": " + value+","+bdEdgeHost.get(value).getTotalMips()+","
+//                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
+
+            //System.out.println("Average hops: "+edgeOrchestrator.getAverageHops());
+            //System.out.println("Average search hops: "+edgeOrchestrator.getAverageSearchHops());
+        }
+
+		if(edgeOrchestrator instanceof VoronoiSingleLayerOrchestrator){
 			HashMap<MobileDevice, EdgeHost> mobileHostAssigned = new HashMap<>();
 			mobileHostAssigned = edgeOrchestrator.getMobileAssignment();
 			// Create a TreeMap from the HashMap
@@ -172,13 +201,24 @@ public class SimManager extends SimEntity {
 			//}
 			//mobileHostAssigned.forEach((key, value) -> System.out.println(key.getId() + ": " + value.getId()+","+value.getTotalMips()+","+value.getAvailableMips()+","+value.getReserveMips()));
 			//mobileHostAssigned.forEach((key, value) -> SimLogger.printLine(key.getId() + ": " + value.getId()+","+value.getTotalMips()+","+value.getAvailableMips()+","+value.getReserveMips()));
-			System.out.println("Mobile Device Id: Assigned Host Id, Total MIPS, Reserved MIPS, Search hops:");
-			sortedMap.forEach((key, value) -> System.out.println(key + ": " + value +","+bdEdgeHost.get(value).getTotalMips()+","
-                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getSearchHop()));
-			sortedMap.forEach((key, value) -> SimLogger.printLine(key + ": " + value+","+bdEdgeHost.get(value).getTotalMips()+","
-                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getSearchHop()));
-		}
-        System.out.println("Average search hops: "+edgeOrchestrator.getAverageSearchHops());
+			//System.out.println("Mobile Device Id: Assigned Host Id, Total MIPS, Reserved MIPS, Hops, Search hops:");
+//            System.out.println("Mobile Device Id: Assigned Host Id, Total MIPS, Reserved MIPS, Hops, Search hops:");
+//			sortedMap.forEach((key, value) -> System.out.println(key + ": " + value +","+bdEdgeHost.get(value).getTotalMips()+","
+//                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
+//			sortedMap.forEach((key, value) -> SimLogger.printLine(key + ": " + value+","+bdEdgeHost.get(value).getTotalMips()+","
+//                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
+            sortedMap.forEach((key, value) -> SimLogger.printLine("MD Id: "+key + " => Host Id: " + value+" TMIPS: "+bdEdgeHost.get(value).getTotalMips()+" RMIPS: "
+                    +bdEdgeHost.get(value).getReserveMips()+" Search Hops: "+bdEdgeHost.get(value).getHop()));
+            //System.out.println("Average search hops: "+edgeOrchestrator.getAverageHops());
+            SimLogger.printLine("Average search hops: "+edgeOrchestrator.getAverageHops());
+
+            //System.out.println("# of mobile devices assigned to cloud: "+edgeOrchestrator.getAssignedToCloudMobileDeviceCount());
+            SimLogger.printLine("# of mobile devices assigned to cloud: "+edgeOrchestrator.getAssignedToCloudMobileDeviceCount());
+            //System.out.println("# of mobile devices not assigned to any host: "+edgeOrchestrator.getUnassignedMobileDeviceCount());
+            SimLogger.printLine("# of mobile devices not assigned to any host: "+edgeOrchestrator.getUnassignedMobileDeviceCount());
+            //System.out.println("Average search hops: "+edgeOrchestrator.getAverageSearchHops());
+        }
+
 		//System.exit(869907);
 		CloudSim.startSimulation();
 	}
