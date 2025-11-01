@@ -64,6 +64,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
                         %disp(fullfile(allFiles(k).folder, allFiles(k).name)); % Prints full path
                         % disp(fileList(i).name); % For just the file name
                     %end
+                    %disp(oldFolder);
                     cd(oldFolder);
                     %disp(['s: ',s])
                     %fprintf('s: %d, length(allFiles): %d\n', s, length(allFiles));

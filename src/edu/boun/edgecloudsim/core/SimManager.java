@@ -76,7 +76,7 @@ public class SimManager extends SimEntity {
 
 	private static SimManager instance = null;
 	
-	
+//	boolean debug = true;
 	/**
 	 * Constructor
 	 * - Generates workload for all mobile devices.
@@ -341,7 +341,11 @@ public class SimManager extends SimEntity {
 			case CREATE_TASK:
 				try {
 					EdgeTask edgeTask = (EdgeTask) ev.getData();
-					mobileDeviceManager.submitTask(edgeTask);						
+					mobileDeviceManager.submitTask(edgeTask);
+                    /*if(debug){
+                        System.out.println("Mobile Device Id: "+edgeTask.getMobileDeviceId()
+                                +", Task submission Time: "+edgeTask.getStartTime());
+                    }*/
 				} catch (Exception e) {
 					e.printStackTrace();
 					System.exit(0);

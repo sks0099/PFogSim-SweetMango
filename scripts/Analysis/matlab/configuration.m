@@ -58,7 +58,7 @@ classdef configuration
             %   oldConfig.FolderPath directory.
             newConfig = configuration;
             % Most important property is FolderPath, so start there.
-            scriptPath = pwd;
+            scriptPath = pwd
             if strcmpi(newConfig.FolderPath, oldConfig.FolderPath)
                 while 1
                     splitPath = strsplit(pwd, '\');
@@ -95,14 +95,16 @@ classdef configuration
                 newConfig.ScenarioLabelsList = strrep(newConfig.SimulationScenarioList, '_', ' ');
             end
             devices = string({combos.devices});
-            allDeviceCounts = unique(devices(:));
+            allDeviceCounts = unique(str2double(devices(:)));
             sort(allDeviceCounts);
             % Update mobile device min, max, and step.
             if newConfig.MinimumMobileDevices == oldConfig.MinimumMobileDevices
-                newConfig.MinimumMobileDevices = str2double(allDeviceCounts(1));
+                %newConfig.MinimumMobileDevices = str2double(allDeviceCounts(1));
+                newConfig.MinimumMobileDevices = allDeviceCounts(1);
             end
             if newConfig.MaximumMobileDevices == oldConfig.MaximumMobileDevices
-                newConfig.MaximumMobileDevices = str2double(allDeviceCounts(length(allDeviceCounts)));
+                %newConfig.MaximumMobileDevices = str2double(allDeviceCounts(length(allDeviceCounts)));
+                newConfig.MaximumMobileDevices = allDeviceCounts(length(allDeviceCounts));
             end
             deviceStep = (newConfig.MaximumMobileDevices - newConfig.MinimumMobileDevices)/(length(allDeviceCounts)-1);
             if newConfig.MobileDeviceStep == oldConfig.MobileDeviceStep

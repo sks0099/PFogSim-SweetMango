@@ -17,7 +17,8 @@ function [] = plotAllPlots()
     % config.FolderPath = "<insert custom file path here>"; % To use a non-default folder, uncomment this line with your folder path.
     isNumberOfMobileDevicesBetween100And600 = 0
     if(isNumberOfMobileDevicesBetween100And600 == 0)
-        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results"
+        %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results"
+        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_500_500_6000"
     else
         config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600"
     end

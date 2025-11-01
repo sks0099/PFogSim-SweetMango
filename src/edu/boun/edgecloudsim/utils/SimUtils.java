@@ -127,6 +127,22 @@ public class SimUtils {
 		}
 		return dir.getAbsolutePath();
 	}
+
+    /**
+     * Create the folder inside the project directory.
+     * @param folder
+     * @return result output folder path
+     */
+    public static String createFolder(String folder){
+        //Create the folder requested under the main project directory
+        File dir = new File(folder);
+        if(!dir.exists() || !dir.isDirectory())
+        {
+            dir.mkdirs();
+            //SimLogger.printLine("Requested folder "+folder+" created in the project directory.");
+        }
+        return dir.getAbsolutePath();
+    }
 	
 	/**
 	 * 

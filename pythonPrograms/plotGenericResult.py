@@ -1,0 +1,289 @@
+import configuration
+import matplotlib.pyplot as plt
+import numpy as np
+
+class plotGenericResult:
+
+    def __init__(self, rowOfset, columnOfset, yLabel, appType, calculatePercentage, config, graphTitle='', yScale=''):
+        # Constructor method (initializer)
+        # Initializes instance attributes unique to each object
+        self.rowOfSet = rowOfset
+        self.columnOfset = columnOfset
+        self.yLabel = yLabel
+        self.appType = appType
+        self.calculatePercentage = calculatePercentage
+        self.config = config
+        self.graphTitle = graphTitle
+        self.yScale = yScale
+
+    def getPlot(self):
+        #if nargin < 6
+        #    config = configuration.autoConfig();
+        #end
+        if self.config == None:
+            config = configuration.autoConfig()
+        #if nargin < 7
+        #    graphTitle = '';
+        #end
+        graphTitle = self.graphTitle
+        #if nargin < 8
+        #    yScale = 'linear';
+        #end
+        if(self.yScale == ''):
+            self.yScale = 'linear'
+        folderPath = config.FolderPath
+        numOfSimulations = config.IterationCount
+        stepOfxAxis = config.XAxisStep
+        scenarioType = config.SimulationScenarioList
+        startOfMobileDeviceLoop = config.MinimumMobileDevices
+        stepOfMobileDeviceLoop = config.MobileDeviceStep
+        # endOfMobileDeviceLoop = 500; % config.MaximumMobileDevices;
+        endOfMobileDeviceLoop = config.MaximumMobileDevices
+        numOfMobileDevices = (endOfMobileDeviceLoop - startOfMobileDeviceLoop) / stepOfMobileDeviceLoop + 1
+
+        all_results = zeros(size(scenarioType, 1), numOfMobileDevices, numOfSimulations);
+        min_results = zeros(size(scenarioType, 1), numOfMobileDevices);
+        max_results = zeros(size(scenarioType, 1), numOfMobileDevices);
+
+        if ~exist('appType', 'var'):
+            appType = 'ALL_APPS'
+        #end
+
+        # Get contents of the target directory
+        dir_contents = dir(folderPath)
+
+        # Initialize counter for matching folders
+        count_matching_folders = 0
+
+        search_string = 'ite'
+        # Loop through each item in the directory contents
+        for i in range(1, len(dir_contents)):
+            item = dir_contents(i)
+
+            # Check if the item is a directory and not '.' or '..'
+            if item.isdir and (item.name != '.') and (item.name != '..'):
+                # Check if the folder name contains the search string
+                if search_string in item.name:
+                    count_matching_folders = count_matching_folders + 1
+                #end
+            #end
+
+        #end
+
+        for s in range (1, numOfSimulations + 1):
+            for i in range (1, size(scenarioType,1)):
+                #for i=1:count_matching_folders
+                for j in range (1, numOfMobileDevices):
+                    mobileDeviceNumber = startOfMobileDeviceLoop + stepOfMobileDeviceLoop * (j-1)
+                #disp(scenarioType)
+                #disp(scenarioType(2))
+                #disp(strcat('**/*SIMRESULT_*',char(scenarioType(i)),'*_NEXT_FIT_*',int2str(mobileDeviceNumber),'*DEVICES_*',appType,'*_GENERIC.log'))
+                #fileName = strcat('**/*SIMRESULT_*',char(scenarioType(i)),'*_NEXT_FIT_*',int2str(mobileDeviceNumber),'*DEVICES_*',appType,'*_GENERIC.log');
+                fileName = '**/*SIMRESULT_*' + scenarioType(i) + '*_NEXT_FIT_*' + str(mobileDeviceNumber) + '*DEVICES_*' + appType + '*_GENERIC.log'
+                # if exist(fileName, 'file')
+                oldFolder = cd(folderPath)
+                allFiles = dir(fileName)
+                # Print the names of the files
+                    #for k = 1:length(allFiles)
+                        #disp(fullfile(allFiles(k).folder, allFiles(k).name)); # Prints full path
+                        # disp(fileList(i).name); # For just the file name
+                    #end
+                cd(oldFolder)
+                    #disp(['s: ',s])
+                    #fprintf('s: %d, length(allFiles): %d\n', s, length(allFiles));
+                if s>length(allFiles):
+                    #disp(['no. of iterations expected: ',numOfSimulations])
+                    #disp(['Iterations found = ', length(allFiles)])
+                    error(strcat('Error: SIMRESULT files missing. Iterations expected: ', int2str(numOfSimulations), '. Iterations found: ', int2str(length(allFiles)), '.'))
+                #end
+                filePath = strcat(allFiles(s).folder, '/', allFiles(s).name)
+                fileData = readmatrix(filePath, 'Delimiter', ';','Range', rowOfset+1)
+                value = fileData(1,columnOfset)
+                if(calculatePercentage==1):
+                    totalTask = fileData(1,1)+fileData(1,2)
+                    value = (100 * value) / totalTask
+                    #end
+                all_results[i,j,s] = value
+                #end
+            #end
+        #end
+    #end
+    
+        if(numOfSimulations == 1):
+            results = all_results
+        else:
+            results = mean(all_results, 3); #still 3d matrix but 1xMxN format
+        #end
+
+        results = squeeze(results) #remove singleton dimensions
+
+        for i in range (1, size(scenarioType,1)):
+            for j in range (1, numOfMobileDevices + 1):
+                x=results[i,j,:]                    # Create Data
+                SEM = math.std(x)/math.sqrt(len(x))            # Standard Error
+                ts = tinv([0.05, 0.95],len(x))   # T-Score
+                CI = mean(x) + ts*SEM                   # Confidence Intervals
+
+                if(CI[1] < 0):
+                    CI[1] = 0
+                #end
+
+                if(CI[2] < 0):
+                    CI[2] = 0
+                #end
+
+                min_results[i,j] = results[i,j] - CI[1]
+                max_results[i,j] = CI[2] - results[i,j]
+            #end
+        #end
+
+
+        types = np.zeros(1,numOfMobileDevices)
+        for i in range(1, numOfMobileDevices + 1):
+            types[i]=startOfMobileDeviceLoop+((i-1)*stepOfMobileDeviceLoop)
+        #end
+
+
+        #hFig = figure;
+        hFig = figure('Visible','off')
+        set(hFig, 'Position', config.PlotWindowCoordinates)
+        set(0,'DefaultAxesFontName','Times New Roman')
+        set(0,'DefaultTextFontName','Times New Roman')
+        set(0,'DefaultAxesFontSize',12)
+        set(0,'DefaultTextFontSize',12)
+        #set(0,'DefaultFigureVisible','off')
+        #LineStyleOrder = {'-.','--','--','--','--','--','--','--','--','-'};
+        if(config.ColorPlot == 1):
+            for i in range (stepOfxAxis, numOfMobileDevices, stepOfxAxis):
+                xIndex=startOfMobileDeviceLoop+((i-1)*stepOfMobileDeviceLoop)
+
+                markers = config.LineStyleColor
+                for j in range (1, size(scenarioType,1)):
+                    if isempty(yScale):
+                        yScale = 'linear'
+                    #end
+                    plt.grid()
+
+                    y = max(1, results[j, i])
+
+
+                    #plt.title("Linear plot of y")
+
+                    plt.figure()
+                    #plt.grid()
+
+
+                    if yScale == 'log':
+                        #semilogy(xIndex, max(1, results[j,i]),char(markers[j]),'MarkerEdgeColor',config.LineColors(j,:),'color',config.LineColors(j,:))
+                        plt.title("Semilog plot of y")
+                        plt.semilogy(y)
+
+                    elif yScale == 'linear':
+                        #plot(xIndex, results(j,i),char(markers(j)),'MarkerFaceColor',config.LineColors(j,:),'color',config.LineColors(j,:));
+                        #plot(xIndex, results(j,i),char(markers(j)),'MarkerFaceColor',config.LineColors(j,:),'color',config.LineColors(j,:))
+                        #'LineStyleOrder',
+                        #linestyles = ["-","-o","--d"];
+                        #linestyleorder(LineStyleOrder);
+                        plt.title("Linear plot of y")
+                        plt.plot(y)
+                    #end
+                    #hold on
+                #end
+            #end
+            yerr = np.linspace(0.05, 0.2, 10)
+            for j in range (len(scenarioType,1)+1):
+                plt.grid()
+
+                y = results[j, :]
+
+                # plt.title("Linear plot of y")
+
+                plt.figure()
+                if(config.IncludeErrorBars == 1):
+                    #errorbar(types, results(j,:), min_results(j,:),max_results(j,:),':k','color',config.LineColors(j,:),'LineWidth',1.5)
+                    plt.errorbar(x, y, yerr=yerr, fmt='o', capsize=5, ecolor='red', elinewidth=2)
+                else:
+                    #plot(types, results(j,:),':k','color',config.LineColors(j,:),'LineWidth',1.5)
+                    plt.grid()
+
+                    y = results[j, :]
+
+                    # plt.title("Linear plot of y")
+
+                    plt.figure()
+                    if(j==6 or j==10):
+                        #plot(types, results(j,:),'-k','color',config.LineColors(j,:),'LineWidth',1.5)
+                        plt.plot(y)
+                    else:
+                        #plot(types, results(j,:),':k','color',config.LineColors(j,:),'LineWidth',1.5)
+                        plt.plot(y)
+                    #end
+                    #linestyleorder(LineStyleOrder);
+                #end
+                #hold on;
+            #end
+        else:
+            markers = config.LineStyleMono
+            #linestyleorder(LineStyleOrder)
+            yerr = np.linspace(0.05, 0.2, 10)
+            for j in range(1, len(scenarioType,1)+1):
+                if(config.IncludeErrorBars == 1 and config.IterationCount > 1):
+                    #errorbar(types, results(j,:),min_results(j,:),max_results(j,:),char(markers(j)),'MarkerFaceColor','w','LineWidth',1.4)
+                    plt.errorbar(x, y, yerr=yerr, fmt='o', capsize=5, ecolor='red', elinewidth=2)
+                else:
+                    plt.grid()
+
+                    y = results[j, :]
+
+                    # plt.title("Linear plot of y")
+
+                    plt.figure()
+                    if yScale == 'log':
+                        #semilogy(types, max(1, results(j,:)), char(markers(j)), 'MarkerFaceColor', 'w', 'LineWidth', 1.4)
+                        plt.semilogy(y)
+                    else:
+                        #plot(types, results(j,:),char(markers(j)),'MarkerFaceColor','w','LineWidth',1.4)
+                        plt.plot(y)
+                        #linestyleorder(LineStyleOrder)
+                    #end
+                #end
+                #hold on;
+            #end
+        #end
+        lgnd = legend(config.ScenarioLabelsList,'Location','best')
+        if(config.ColorPlot == 1):
+            set(lgnd,'color','none')
+        #end
+
+        #hold off;
+        # axis square
+        xlabel(config.HorizontalAxisLabel)
+        ax = plt.gca()
+        # Define the start, end, and step for the x-axis ticks
+        start_tick = stepOfxAxis*stepOfMobileDeviceLoop
+        end_tick = endOfMobileDeviceLoop
+        step_tick = stepOfxAxis*stepOfMobileDeviceLoop
+
+        # Generate the tick locations using numpy.arange()
+        tick_locations = np.arange(start_tick, end_tick + step_tick, step_tick)
+
+        # Set the x-axis ticks
+        ax.set_xticks(tick_locations)
+        #ax.set()
+        #set(gca,'XTick', (stepOfxAxis*stepOfMobileDeviceLoop):(stepOfxAxis*stepOfMobileDeviceLoop):endOfMobileDeviceLoop)
+        '''ylabel(yLabel)
+        set(gca,'XLim',[startOfMobileDeviceLoop-5 endOfMobileDeviceLoop+5])
+        
+        set(get(gca,'Xlabel'),'FontSize',12)
+        set(get(gca,'Ylabel'),'FontSize',12)
+        set(lgnd,'FontSize',12)
+        if isempty(graphTitle):
+            graphTitle = yLabel + ' - ' + strrep(appType, '_', ' ')
+        #end
+        title(graphTitle, 'FontSize', 12)
+        annotation('rectangle',[0, 0, 1, 1],'Color','w')
+        plotOutput = hFig'''
+        #set(0,'DefaultFigureVisible','on');
+        #figure('Visible','on');
+        #set(hFig, 'visible', 'on');
+    #end

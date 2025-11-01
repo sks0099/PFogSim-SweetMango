@@ -33,6 +33,7 @@ import edu.auburn.pFogSim.netsim.ESBModel;
 import edu.auburn.pFogSim.netsim.NodeSim;
 import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
 import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
+import edu.boun.ConstantsClass;
 import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
@@ -70,8 +71,12 @@ public class SimLogger {
 	private static File textFile;
 	private static FileOutputStream fos;
 	private static PrintStream ps;
+
+    private static File csvFile;
+    private static FileOutputStream fos_csv;
 	
 	private static SimLogger singleton = new SimLogger();
+    private static ConstantsClass constantsClass = new ConstantsClass();
 	
 	
 	/*
@@ -138,6 +143,10 @@ public class SimLogger {
 	public File getConsoleTxtFile() {
 		return this.textFile;
 	}
+
+    public File getCsvFile() {
+        return this.csvFile;
+    }
 	
 	
 
@@ -170,12 +179,40 @@ public class SimLogger {
 		if (!f.exists()) {
 			f.mkdirs();
 		}
-		textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) + "_console.txt");
+		textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
+        //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) + "_console.txt");
 		//textFile = new File("_consoleOut" + Long.toString(System.currentTimeMillis()) + ".txt");
 		textFile.createNewFile();
 		fos = new FileOutputStream(textFile);
 		ps = new PrintStream(fos);
 	}
+
+    public static void fileInitialize(String outputFolder, String csvOutputFolder) throws IOException {
+        File f = new File(outputFolder);
+        if (!f.exists()) {
+            f.mkdirs();
+        }
+        Long systemTimeInMillis = System.currentTimeMillis();
+        //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
+        textFile = new File(outputFolder, Long.toString(systemTimeInMillis) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
+        //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) + "_console.txt");
+        //textFile = new File("_consoleOut" + Long.toString(System.currentTimeMillis()) + ".txt");
+        textFile.createNewFile();
+        fos = new FileOutputStream(textFile);
+        ps = new PrintStream(fos);
+
+        File f_csv = new File(csvOutputFolder);
+        if (!f_csv.exists()) {
+            f_csv.mkdirs();
+        }
+        csvFile = new File(csvOutputFolder, Long.toString(systemTimeInMillis)+"_"+ constantsClass.getMin_number_of_mobile_devices()+"_"+
+                constantsClass.getMobile_device_counter_size()+"_"+constantsClass.getMax_number_of_mobile_devices()
+                +"_"+SimSettings.getInstance().getComputerName()+".csv");
+        //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) + "_console.txt");
+        //textFile = new File("_consoleOut" + Long.toString(System.currentTimeMillis()) + ".txt");
+        csvFile.createNewFile();
+        fos_csv = new FileOutputStream(csvFile);
+    }
 	
 	/**
 	 * @param outFolder

@@ -27,6 +27,10 @@ public final class ConstantsClass {
     public static String nodeXmlFile = "node_test.xml";
     public static String linksXmlFile = "links_test.xml";
     private String[] SIMULATION_SCENARIOS;
+    private boolean generateTaskCreationCSV;
+    private static int min_number_of_mobile_devices;
+    private static int max_number_of_mobile_devices;
+    private static int mobile_device_counter_size;
 
     public ConstantsClass() {
         // Prevent instantiation
@@ -46,6 +50,66 @@ public final class ConstantsClass {
             ex.printStackTrace();
         }
         return SIMULATION_SCENARIOS;
+    }
+
+    public boolean isGenerateTaskCreationCSV(){
+        InputStream propInput = null;
+        try {
+            propInput = new FileInputStream(propertiesFile);
+
+            // load a properties file
+            Properties prop = new Properties();
+            prop.load(propInput);
+            generateTaskCreationCSV = prop.getProperty("generate_task_creation_csv").equals("true");
+        }catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return generateTaskCreationCSV;
+    }
+
+    public int getMin_number_of_mobile_devices(){
+        InputStream propInput = null;
+        try {
+            propInput = new FileInputStream(propertiesFile);
+
+            // load a properties file
+            Properties prop = new Properties();
+            prop.load(propInput);
+            min_number_of_mobile_devices = Integer.parseInt((prop.getProperty("min_number_of_mobile_devices")));
+        }catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return min_number_of_mobile_devices;
+    }
+
+    public int getMax_number_of_mobile_devices(){
+        InputStream propInput = null;
+        try {
+            propInput = new FileInputStream(propertiesFile);
+
+            // load a properties file
+            Properties prop = new Properties();
+            prop.load(propInput);
+            max_number_of_mobile_devices = Integer.parseInt((prop.getProperty("max_number_of_mobile_devices")));
+        }catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return max_number_of_mobile_devices;
+    }
+
+    public int getMobile_device_counter_size(){
+        InputStream propInput = null;
+        try {
+            propInput = new FileInputStream(propertiesFile);
+
+            // load a properties file
+            Properties prop = new Properties();
+            prop.load(propInput);
+            mobile_device_counter_size = Integer.parseInt((prop.getProperty("mobile_device_counter_size")));
+        }catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return mobile_device_counter_size;
     }
 }
 

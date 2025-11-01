@@ -17,6 +17,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
@@ -90,9 +92,13 @@ public class SimSettings {
     //Qian added for service replacement
     private boolean serviceReplacement = false;
 
+    private int iteration_number;
+
     private int MIN_NUM_OF_MOBILE_DEVICES;
     private int MAX_NUM_OF_MOBILE_DEVICES;
     private int MOBILE_DEVICE_COUNTER_SIZE;
+
+    private boolean preferredHostIndexAscending_for_slv;
     
     private int NUM_OF_EDGE_DATACENTERS;
     private int NUM_OF_EDGE_HOSTS;
@@ -253,12 +259,15 @@ public class SimSettings {
 			//Qian get trace enable property
 			TRACE_ENABLED = Boolean.parseBoolean(prop.getProperty("trace_enabled"));
 			ASSIGN_DEVICES_LAYER1 = Boolean.parseBoolean(prop.getProperty("assign_devices_layer1"));
-			
+
+            iteration_number = Integer.parseInt(prop.getProperty("iteration_number"));
 			MIN_NUM_OF_MOBILE_DEVICES = Integer.parseInt(prop.getProperty("min_number_of_mobile_devices"));
 			MAX_NUM_OF_MOBILE_DEVICES = Integer.parseInt(prop.getProperty("max_number_of_mobile_devices"));
 			MOBILE_DEVICE_COUNTER_SIZE = Integer.parseInt(prop.getProperty("mobile_device_counter_size"));
 			MOVING_DEVICES = Boolean.parseBoolean(prop.getProperty("moving_devices"));
-			
+
+            preferredHostIndexAscending_for_slv = Boolean.parseBoolean(prop.getProperty("preferredHostIndexAscending_for_slv"));
+
 			WAN_PROPAGATION_DELAY = Double.parseDouble(prop.getProperty("wan_propagation_delay"));
 			LAN_INTERNAL_DELAY = Double.parseDouble(prop.getProperty("lan_internal_delay"));
 			BANDWITH_WLAN = BITS_PER_KILOBIT * Integer.parseInt(prop.getProperty("wlan_bandwidth"));
@@ -342,7 +351,31 @@ public class SimSettings {
 		
 		return result;
 	}
-	
+
+    public String getComputerName()
+    {
+        Map<String, String> env = System.getenv();
+        if (env.containsKey("COMPUTERNAME"))
+            return env.get("COMPUTERNAME");
+        else if (env.containsKey("HOSTNAME"))
+            return env.get("HOSTNAME");
+        else {
+            try {
+
+                // get system name
+                String SystemName
+                        = InetAddress.getLocalHost().getHostName();
+
+                // SystemName stores the name of the system
+                //System.out.println("System Name : " + SystemName);
+                return SystemName;
+            }
+            catch (Exception E) {
+                //System.err.println(E.getMessage());
+                return "Unknown Computer";
+            }
+        }
+    }
 	
     /**
 	 * @return the selectedHostIds
@@ -492,7 +525,8 @@ public class SimSettings {
 	{
 		return BANDWITH_GSM;
 	}
-	
+
+    public int getIterationNumber(){return iteration_number;}
 	
 	/**
 	 * returns the minimum number of the mobile devices used in the simulation
@@ -529,7 +563,15 @@ public class SimSettings {
 		return MOBILE_DEVICE_COUNTER_SIZE;
 	}
 
-	
+    /**
+     * returns preferredHostIndexAscending_for_slv used for Single Layer Voronoi orchestrator
+     * Increasing host index means descending MIPS capacity and vice versa.
+     */
+    public boolean getPreferredHostIndexAscending_for_slv()
+    {
+        return preferredHostIndexAscending_for_slv;
+    }
+
 	/**
 	 * returns the number of edge datacenters
 	 */

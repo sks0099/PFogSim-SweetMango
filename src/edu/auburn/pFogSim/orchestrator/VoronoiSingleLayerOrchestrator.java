@@ -58,7 +58,8 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
     // since their capacities are smaller, they cannot process more tasks that require very high MIPS.
     Integer preferredHostMinIndex; //= 0;//0;//1;
     Integer preferredHostMaxIndex; //= 2;//1;//4;
-    boolean preferredHostIndexAscending = true;
+    boolean preferredHostIndexAscending = SimSettings.getInstance().getPreferredHostIndexAscending_for_slv(); // true;
+    boolean checkLatencyConditionForCloud = false;
     // The following array to hold preferredHostMaxIndex ArrayLists
     List<EdgeHost>[] preferredHostLists;// = new List[preferredHostMaxIndex+1];//-preferredHostMinIndex+1];
 
@@ -120,7 +121,7 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
     // Currently, selectHostByLeastCost is not being used independently. The program uses both the least latency
     // and the least cost using rankings in latency as well as in cost.
     Boolean selectHostByLeastLatency = true;
-    Boolean selectHostByLeastCost = true;
+    Boolean selectHostByLeastCost = false;
 
     // debug is used to print outputs on console at various stages to facilitate debugging.
     Boolean debug = false;
@@ -491,7 +492,8 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
         //System.exit(8686899);
         HostId_Latency = new HashMap<Integer, Double>();
         EdgeHost selHostConsideringLatencyOnly = null;
-        System.out.print("Prospective node processing hostIds for mobile device Id: "+mobile.getId()+"\n");
+        System.out.print("Prospective node processing hostIds for mobile device Id: "+mobile.getId()+
+                " preferredHostListsIndex: "+preferredHostListsIndex+"\n");
 
         while(prospectiveNodes.size() < maxProspectiveNodeCount && preferredHosts.size() > preferredHostsCheckedCount){
             //System.out.println("myVoronoiNeighborSiteMap size = " + myVoronoiNeighborSiteMap.size());
@@ -567,13 +569,29 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
                         }else {
                             totalDelay = hostProcessingDelay + hostNetworkDelay;
                         }
-                        if (totalDelay < latencySafetyFactor * acceptableLatency) {
-                            //System.out.println();
-                            //return true;
-                            //prospectiveNodes.add(pointToHostMapXY.get(hostPoint.convertLongLatPointToXYCoordinates()));
-                            prospectiveNodes.add(pEdgeHost);
-                            HostId_Latency.put(pEdgeHost.getId(),totalDelay);
+                        if(preferredHostListsIndex > 0) {
+                            if (totalDelay < latencySafetyFactor * acceptableLatency) {
+                                //System.out.println();
+                                //return true;
+                                //prospectiveNodes.add(pointToHostMapXY.get(hostPoint.convertLongLatPointToXYCoordinates()));
+                                prospectiveNodes.add(pEdgeHost);
+                                HostId_Latency.put(pEdgeHost.getId(), totalDelay);
 //                            System.out.println("HostId: "+pEdgeHost.getId()+" Estimated latency: "+totalDelay);
+                            }
+                        }else{
+                            if(checkLatencyConditionForCloud){
+                                if (totalDelay < latencySafetyFactor * acceptableLatency) {
+                                    //System.out.println();
+                                    //return true;
+                                    //prospectiveNodes.add(pointToHostMapXY.get(hostPoint.convertLongLatPointToXYCoordinates()));
+                                    prospectiveNodes.add(pEdgeHost);
+                                    HostId_Latency.put(pEdgeHost.getId(), totalDelay);
+//                            System.out.println("HostId: "+pEdgeHost.getId()+" Estimated latency: "+totalDelay);
+                                }
+                            }else {
+                                prospectiveNodes.add(pEdgeHost);
+                                HostId_Latency.put(pEdgeHost.getId(), totalDelay);
+                            }
                         }
                         //prospectiveNodes.add(pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates()));
                         //nearest = pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates());
@@ -961,10 +979,63 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
         //If none of the fog nodes fail to host, try to host on cloud
         if(!assignmentDone) {
             preferredHostListsIndex = 0;
-            prospectiveNodes = getProspectiveNodes(preferredHostListsIndex, mobile);
-            goodNodes = getGoodNodes(prospectiveNodes, mobile);
-            assignmentDone = attemptHostAssignment(goodNodes, mobile);
-            if(assignmentDone){ assignedToCloudMobileDeviceCount++;}
+            if(checkLatencyConditionForCloud) {
+                prospectiveNodes = getProspectiveNodes(preferredHostListsIndex, mobile);
+                goodNodes = getGoodNodes(prospectiveNodes, mobile);
+                assignmentDone = attemptHostAssignment(goodNodes, mobile);
+                if (assignmentDone) {
+                    assignedToCloudMobileDeviceCount++;
+                }
+            }else{
+                prospectiveNodes = getProspectiveNodes(preferredHostListsIndex, mobile);
+                goodNodes = prospectiveNodes;//getGoodNodes(prospectiveNodes, mobile);
+                assignmentDone = attemptHostAssignment(goodNodes, mobile);
+                if (assignmentDone) {
+                    assignedToCloudMobileDeviceCount++;
+                }
+                /*int selHostId = 0;//preferredHosts(preferredHostListsIndex);
+                EdgeHost selHost = bdEdgeHost.get(selHostId);
+                LinkedList<NodeSim> path = ((ESBModel) SimManager.getInstance().getNetworkModel()).findPath(selHost, mobile);
+                mobile.setPath(path);
+                mobile.setHost(selHost);
+                //System.out.println("Before reservation: "+selHost.getTotalMips()+", "+selHost.getAvailableMips()+", "+selHost.getReserveMips());
+                //mobile.setAppType(SimSettings.APP_TYPES.AUGMENTED_REALITY); // added by sks0099 on 09112025 for testing
+                //mobile.makeReservation(); // added by sks0099 on 09112025 for testing
+                //mobile.makeReservation(); // added by sks0099 on 09112025 for testing
+                mobile.makeReservation();
+                //System.out.println("After reservation: "+selHost.getTotalMips()+", "+selHost.getAvailableMips()+", "+selHost.getReserveMips());
+                //System.exit(97979);
+                Integer currentAssignmentCount = 0;
+                if (Host_AssignedMobileCount.containsKey(selHost)) {
+                    currentAssignmentCount = Host_AssignedMobileCount.get(selHost);
+                }
+                Host_AssignedMobileCount.put(selHost, currentAssignmentCount + 1);
+                mobileHostHop.put(mobile, HostId_Hops.get(selHostId));
+                selHost.setHop(HostId_Hops.get(selHostId));
+                this.hops[mobile.getId()] = HostId_Hops.get(selHostId);
+                System.out.println("  Assigned host: " + selHost.getId() + " total assignment: " + (currentAssignmentCount + 1) + " Estimated latency: " + HostId_Latency.get(selHost.getId())
+                        + " Voronoi traversal hops (mobile to the host): " + HostId_Hops.get(selHostId));
+
+                searchHop.put(mobile, HostId_SearchHops.get(selHostId));
+                selHost.setSearchHop(HostId_SearchHops.get(selHostId));
+                this.searchHops[mobile.getId()] = HostId_SearchHops.get(selHostId);
+                if(debug) {
+                    System.out.println("  Assigned host: " + selHost.getId() + " total assignment: " + (currentAssignmentCount + 1) + " Estimated latency: " + HostId_Latency.get(selHost.getId())
+                            + " Search hops (mobile to the host): " + HostId_SearchHops.get(selHostId));
+                }
+
+                mobileHostAssignment.put(mobile, selHost);
+
+                double distanceBetweenMobileAndHost = DataInterpreter.measure(mobile.getLocation().getYPos(), mobile.getLocation().getXPos(),
+                        selHost.getLocation().getYPos(), selHost.getLocation().getXPos());
+                if (SimSettings.getInstance().traceEnable()) {
+                    SimLogger.printLine("Distance from mobile to the host is: " +
+                            distanceBetweenMobileAndHost + " m");
+                    SimLogger.printLine("Mobile location is: (" + mobile.getLocation().getXPos() + "," + mobile.getLocation().getYPos() + ")");
+                    SimLogger.printLine("Host location is: (" + selHost.getLocation().getXPos() + "," + selHost.getLocation().getYPos() + ")");
+                }*/
+
+            }
         }
         if(!assignmentDone){
             System.out.println("Host assignment failed.");
@@ -1536,6 +1607,7 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
 
 
         Map<Integer, Integer> latencyRank = new LinkedHashMap<>();
+        Integer selHostId = -1;
         if (selectHostByLeastLatency) {
             //HostId_Latency.forEach();
             TreeMap<Integer, Double> HostId_LatencyTreeMap = new TreeMap<>();
@@ -1593,150 +1665,162 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
             //    System.out.println("  Mobile device: "+mobile.getId()+"  WAP: "+mobile.getLocation().getServingWlanId()+"  Assigned host:  "+selHost.getId());
             //return;
             //}
+            if(!selectHostByLeastCost) {
+                for (Map.Entry<Integer, Double> entry : sortedByValueMap.entrySet()) {
+                    //System.out.println(entry.getKey() + ": " + entry.getValue() + " Rank: " + latencyRank.get(entry.getKey()));
+                    selHostId = entry.getKey();
+                    break;
+                }
+            }else{
+                Map<NodeSim, LinkedList<NodeSim>> selectedDesMap = new HashMap<>();
+                Map<Integer, LinkedList<NodeSim>> selectedDesMapUsingHostId = new HashMap<>();
+
+                for (int i = 0; i < goodNodes.size(); i++) {
+
+                    // for each host, get the NodeSim object
+                    Location hostLoc = goodNodes.get(i).getLocation();
+                    NodeSim hostNode = ((ESBModel) networkModel).getNetworkTopology().findNode(hostLoc, false);
+
+                    // for each such NodeSim object, retrieve the row and add it to selectedDesMap
+                    selectedDesMap.put(hostNode, desMap.get(hostNode));
+                    selectedDesMapUsingHostId.put(goodNodes.get(i).getId(), desMap.get(hostNode));
+                }
+
+                // continue with processing as earlier.
+                TreeMap<Integer, Double> HostId_CostTreeMap = new TreeMap<>();
+
+                // Convert entries to a List
+
+                for (Map.Entry<NodeSim, LinkedList<NodeSim>> entry : selectedDesMap.entrySet()) {
+                    double cost = 0;
+                    NodeSim des = entry.getKey();
+                    LinkedList<NodeSim> path = entry.getValue();
+                    if (path == null || path.size() == 0) {
+                        EdgeHost k = SimManager.getInstance().getLocalServerManager().findHostByLoc(mobile.getLocation().getXPos(), mobile.getLocation().getYPos(), mobile.getLocation().getAltitude());
+
+                        //double bwCost = mobile.getBWRequirement() * k.getCostPerBW();
+                        double bwCost = (mobile.getBWRequirement() * 8 / (double) 1024) * k.getCostPerBW(); //mobile.getBWRequirement() in KB * 8b/B ==>Kb / 1024 = Mb; k.getCostPerBW() in $/Mb -- Shaik modified
+
+                        //double exCost = (double)mobile.getTaskLengthRequirement() / k.getTotalMips() * k.getCostPerSec();
+                        double exCost = (double) mobile.getTaskLengthRequirement() / (k.getPeList().get(0).getMips()) * k.getCostPerSec(); // Shaik modified - May 07, 2019.
+
+                        cost = cost + bwCost;
+                        //SimLogger.getInstance().getCentralizeLogPrinter().println("Level:\t" + des.getLevel() + "\tNode:\t" + des.getWlanId() + "\tBWCost:\t" + bwCost + "\tTotalBWCost:\t" + cost);
+                        //SimLogger.getInstance().getCentralizeLogPrinter().println("Total data:\t" + mobile.getBWRequirement() + "\tBWCostPerSec:\t" + k.getCostPerBW());
+                        cost = cost + exCost;
+                        //SimLogger.getInstance().getCentralizeLogPrinter().println("Destination:\t"+ des.getWlanId() + "\tExecuteCost:\t" + exCost + "\tTotalCost:\t" + cost);
+                        //SimLogger.getInstance().getCentralizeLogPrinter().println("Service CPu Time:\t" + ((double)mobile.getTaskLengthRequirement() / k.getTotalMips()) + "\tMipsCostPerSec:\t" + k.getCostPerSec());
+                        //System.out.println("Host Id: "+k.getId()+" cost: "+cost);
+                        HostId_CostTreeMap.put(k.getId(), cost);
+                    } else {
+                        //SimLogger.getInstance().getCentralizeLogPrinter().println("**********Path From " + src.getWlanId() + " To " + des.getWlanId() + "**********");
+                        for (NodeSim node : path) {
+                            EdgeHost k = SimManager.getInstance().getLocalServerManager().findHostByLoc(node.getLocation().getXPos(), node.getLocation().getYPos(), node.getLocation().getAltitude());
+                            //double bwCost = mobile.getBWRequirement() * k.getCostPerBW();
+                            double bwCost = (mobile.getBWRequirement() * 8 / (double) 1024) * k.getCostPerBW(); //mobile.getBWRequirement() in KB * 8b/B ==>Kb / 1024 = Mb; k.getCostPerBW() in $/Mb -- Shaik modified
+
+                            cost = cost + bwCost;
+                            //SimLogger.getInstance().getCentralizeLogPrinter().println("Level:\t" + node.getLevel() + "\tNode:\t" + node.getWlanId() + "\tBWCost:\t" + bwCost + "\tTotalBWCost:\t" + cost);
+                            //SimLogger.getInstance().getCentralizeLogPrinter().println("Total data:\t" + mobile.getBWRequirement() + "\tBWCostPerSec:\t" + k.getCostPerBW());
+                        }
+                        EdgeHost desHost = SimManager.getInstance().getLocalServerManager().findHostByLoc(des.getLocation().getXPos(), des.getLocation().getYPos(), des.getLocation().getAltitude());
+                        //double exCost = desHost.getCostPerSec() * ((double)mobile.getTaskLengthRequirement() / desHost.getTotalMips());
+                        double exCost = (double) mobile.getTaskLengthRequirement() / (desHost.getPeList().get(0).getMips()) * desHost.getCostPerSec(); // Shaik modified - May 07, 2019.
+
+                        cost = cost + exCost;
+                        //SimLogger.getInstance().getCentralizeLogPrinter().println("Destination:\t"+ des.getWlanId() + "\tExecuteCost:\t" + exCost + "\tTotalCost:\t" + cost);
+                        //SimLogger.getInstance().getCentralizeLogPrinter().println("Service CPU time:\t" + ((double)mobile.getTaskLengthRequirement() / desHost.getTotalMips()) + "\tMipsCostPerSec:\t" + desHost.getCostPerSec());
+                        //System.out.println("Host Id: "+desHost.getId()+" cost: "+cost);
+                        HostId_CostTreeMap.put(desHost.getId(), cost);
+                    }
+
+
+                    if (costMap.containsKey(cost)) {
+                        if (!costMap.get(cost).contains(des)) {
+                            costMap.get(cost).add(des);
+                        }
+                    } else {
+                        ArrayList<NodeSim> desList = new ArrayList<>();
+                        desList.add(des);
+                        costMap.put(cost, desList);
+                    }
+
+                }
+
+                //Sort the list of prospective nodes by increasing cost
+                LinkedList<EdgeHost> hostsSortedByCost = new LinkedList<EdgeHost>();
+
+                //Create a sorted list of costs
+                List<Double> costList = new ArrayList<Double>(costMap.keySet());
+                Collections.sort(costList);
+
+                List<Map.Entry<Integer, Double>> costEntryList = new ArrayList<>(HostId_CostTreeMap.entrySet());
+                // Create a new LinkedHashMap to maintain the sorted order by value
+                Map<Integer, Double> sortedByCostValueMap = new LinkedHashMap<>();
+                //Integer firstKey = 0;
+
+                // Sort the list by Double values in ascending order
+                Collections.sort(costEntryList, new Comparator<Map.Entry<Integer, Double>>() {
+                    @Override
+                    public int compare(Map.Entry<Integer, Double> entry1, Map.Entry<Integer, Double> entry2) {
+                        // Compare values
+                        int valueComparison = entry1.getValue().compareTo(entry2.getValue());
+
+                        // If values are equal, sort by key to ensure stable sorting and prevent loss of entries in case of re-insertion into a map that doesn't allow duplicate keys (like a TreeMap).
+                        if (valueComparison == 0) {
+                            return entry1.getKey().compareTo(entry2.getKey());
+                        }
+                        return valueComparison;
+                    }
+                });
+
+                for (Map.Entry<Integer, Double> costEntry : costEntryList) {
+                    //if(goodHostWithoutCheckingLatency(bdEdgeHost.get(distanceEntry.getKey()), mobile)) {
+                    sortedByCostValueMap.put(costEntry.getKey(), costEntry.getValue());
+                    //}
+                }
+                //firstKey = sortedByValueMap.keySet().iterator().next();
+                Map<Integer, Integer> costRank = new LinkedHashMap<>();
+                //Collections.sort(sortedByCostValueMap);
+                costRank = getRank(sortedByCostValueMap);
+                //sortedHostId_LatencyMap.forEach((key, value) -> System.out.println(key + ": " + value +","+bdEdgeHost.get(value).getTotalMips()+","+bdEdgeHost.get(value).getReserveMips()));
+                //TreeMap<Integer, Double> sortedHostId_LatencyMap = new TreeMap<>();
+                //entriesSortedByValues(HostId_LatencyTreeMap);
+                //sortedByValueMap.forEach((key, value) -> System.out.println(key + ": " + value)+" Rank: "+latencyRank.get(key));
+                if (debug) {
+                    for (Map.Entry<Integer, Double> costEntry : sortedByCostValueMap.entrySet()) {
+                        System.out.println(costEntry.getKey() + ": " + costEntry.getValue() + " Rank: " + costRank.get(costEntry.getKey()));
+                    }
+                }
+
+                Map<Integer, Integer> combinedRank = new LinkedHashMap<>();
+                //Integer selHostId = -1;
+                Integer currentCombinedRank = 0;
+                Integer minimumCombinedRank = 100000;
+                Integer entryCount = 0;
+                for (Map.Entry<Integer, Double> costEntry : sortedByCostValueMap.entrySet()) {
+                /*System.out.println(costEntry.getKey() + ": " + costEntry.getValue() + " Rank: " + costRank.get(costEntry.getKey())
+                        + " LatencyRank: " + latencyRank.get(costEntry.getKey()) + " combined rank: " +
+                        (costRank.get(costEntry.getKey()) + latencyRank.get(costEntry.getKey())));*/
+                    if (entryCount == 0) {
+                        selHostId = costEntry.getKey();
+                        currentCombinedRank = (costRank.get(costEntry.getKey()) + latencyRank.get(costEntry.getKey()));
+                        minimumCombinedRank = currentCombinedRank;
+                    } else {
+                        currentCombinedRank = (costRank.get(costEntry.getKey()) + latencyRank.get(costEntry.getKey()));
+                        if (currentCombinedRank < minimumCombinedRank) {
+                            minimumCombinedRank = currentCombinedRank;
+                            selHostId = costEntry.getKey();
+                        }
+                    }
+                    entryCount++;
+                }
+            }
         }
         //System.exit(765467376);
-        Map<NodeSim, LinkedList<NodeSim>> selectedDesMap = new HashMap<>();
-        Map<Integer, LinkedList<NodeSim>> selectedDesMapUsingHostId = new HashMap<>();
+        /*if(selectHostByLeastCost) {
 
-        for (int i = 0; i < goodNodes.size(); i++) {
-
-            // for each host, get the NodeSim object
-            Location hostLoc = goodNodes.get(i).getLocation();
-            NodeSim hostNode = ((ESBModel) networkModel).getNetworkTopology().findNode(hostLoc, false);
-
-            // for each such NodeSim object, retrieve the row and add it to selectedDesMap
-            selectedDesMap.put(hostNode, desMap.get(hostNode));
-            selectedDesMapUsingHostId.put(goodNodes.get(i).getId(), desMap.get(hostNode));
-        }
-
-        // continue with processing as earlier.
-        TreeMap<Integer, Double> HostId_CostTreeMap = new TreeMap<>();
-
-        // Convert entries to a List
-
-        for (Map.Entry<NodeSim, LinkedList<NodeSim>> entry : selectedDesMap.entrySet()) {
-            double cost = 0;
-            NodeSim des = entry.getKey();
-            LinkedList<NodeSim> path = entry.getValue();
-            if (path == null || path.size() == 0) {
-                EdgeHost k = SimManager.getInstance().getLocalServerManager().findHostByLoc(mobile.getLocation().getXPos(), mobile.getLocation().getYPos(), mobile.getLocation().getAltitude());
-
-                //double bwCost = mobile.getBWRequirement() * k.getCostPerBW();
-                double bwCost = (mobile.getBWRequirement() * 8 / (double) 1024) * k.getCostPerBW(); //mobile.getBWRequirement() in KB * 8b/B ==>Kb / 1024 = Mb; k.getCostPerBW() in $/Mb -- Shaik modified
-
-                //double exCost = (double)mobile.getTaskLengthRequirement() / k.getTotalMips() * k.getCostPerSec();
-                double exCost = (double) mobile.getTaskLengthRequirement() / (k.getPeList().get(0).getMips()) * k.getCostPerSec(); // Shaik modified - May 07, 2019.
-
-                cost = cost + bwCost;
-                //SimLogger.getInstance().getCentralizeLogPrinter().println("Level:\t" + des.getLevel() + "\tNode:\t" + des.getWlanId() + "\tBWCost:\t" + bwCost + "\tTotalBWCost:\t" + cost);
-                //SimLogger.getInstance().getCentralizeLogPrinter().println("Total data:\t" + mobile.getBWRequirement() + "\tBWCostPerSec:\t" + k.getCostPerBW());
-                cost = cost + exCost;
-                //SimLogger.getInstance().getCentralizeLogPrinter().println("Destination:\t"+ des.getWlanId() + "\tExecuteCost:\t" + exCost + "\tTotalCost:\t" + cost);
-                //SimLogger.getInstance().getCentralizeLogPrinter().println("Service CPu Time:\t" + ((double)mobile.getTaskLengthRequirement() / k.getTotalMips()) + "\tMipsCostPerSec:\t" + k.getCostPerSec());
-                //System.out.println("Host Id: "+k.getId()+" cost: "+cost);
-                HostId_CostTreeMap.put(k.getId(), cost);
-            } else {
-                //SimLogger.getInstance().getCentralizeLogPrinter().println("**********Path From " + src.getWlanId() + " To " + des.getWlanId() + "**********");
-                for (NodeSim node : path) {
-                    EdgeHost k = SimManager.getInstance().getLocalServerManager().findHostByLoc(node.getLocation().getXPos(), node.getLocation().getYPos(), node.getLocation().getAltitude());
-                    //double bwCost = mobile.getBWRequirement() * k.getCostPerBW();
-                    double bwCost = (mobile.getBWRequirement() * 8 / (double) 1024) * k.getCostPerBW(); //mobile.getBWRequirement() in KB * 8b/B ==>Kb / 1024 = Mb; k.getCostPerBW() in $/Mb -- Shaik modified
-
-                    cost = cost + bwCost;
-                    //SimLogger.getInstance().getCentralizeLogPrinter().println("Level:\t" + node.getLevel() + "\tNode:\t" + node.getWlanId() + "\tBWCost:\t" + bwCost + "\tTotalBWCost:\t" + cost);
-                    //SimLogger.getInstance().getCentralizeLogPrinter().println("Total data:\t" + mobile.getBWRequirement() + "\tBWCostPerSec:\t" + k.getCostPerBW());
-                }
-                EdgeHost desHost = SimManager.getInstance().getLocalServerManager().findHostByLoc(des.getLocation().getXPos(), des.getLocation().getYPos(), des.getLocation().getAltitude());
-                //double exCost = desHost.getCostPerSec() * ((double)mobile.getTaskLengthRequirement() / desHost.getTotalMips());
-                double exCost = (double) mobile.getTaskLengthRequirement() / (desHost.getPeList().get(0).getMips()) * desHost.getCostPerSec(); // Shaik modified - May 07, 2019.
-
-                cost = cost + exCost;
-                //SimLogger.getInstance().getCentralizeLogPrinter().println("Destination:\t"+ des.getWlanId() + "\tExecuteCost:\t" + exCost + "\tTotalCost:\t" + cost);
-                //SimLogger.getInstance().getCentralizeLogPrinter().println("Service CPU time:\t" + ((double)mobile.getTaskLengthRequirement() / desHost.getTotalMips()) + "\tMipsCostPerSec:\t" + desHost.getCostPerSec());
-                //System.out.println("Host Id: "+desHost.getId()+" cost: "+cost);
-                HostId_CostTreeMap.put(desHost.getId(), cost);
-            }
-
-
-            if (costMap.containsKey(cost)) {
-                if (!costMap.get(cost).contains(des)) {
-                    costMap.get(cost).add(des);
-                }
-            } else {
-                ArrayList<NodeSim> desList = new ArrayList<>();
-                desList.add(des);
-                costMap.put(cost, desList);
-            }
-
-        }
-
-        //Sort the list of prospective nodes by increasing cost
-        LinkedList<EdgeHost> hostsSortedByCost = new LinkedList<EdgeHost>();
-
-        //Create a sorted list of costs
-        List<Double> costList = new ArrayList<Double>(costMap.keySet());
-        Collections.sort(costList);
-
-        List<Map.Entry<Integer, Double>> costEntryList = new ArrayList<>(HostId_CostTreeMap.entrySet());
-        // Create a new LinkedHashMap to maintain the sorted order by value
-        Map<Integer, Double> sortedByCostValueMap = new LinkedHashMap<>();
-        //Integer firstKey = 0;
-
-        // Sort the list by Double values in ascending order
-        Collections.sort(costEntryList, new Comparator<Map.Entry<Integer, Double>>() {
-            @Override
-            public int compare(Map.Entry<Integer, Double> entry1, Map.Entry<Integer, Double> entry2) {
-                // Compare values
-                int valueComparison = entry1.getValue().compareTo(entry2.getValue());
-
-                // If values are equal, sort by key to ensure stable sorting and prevent loss of entries in case of re-insertion into a map that doesn't allow duplicate keys (like a TreeMap).
-                if (valueComparison == 0) {
-                    return entry1.getKey().compareTo(entry2.getKey());
-                }
-                return valueComparison;
-            }
-        });
-
-        for (Map.Entry<Integer, Double> costEntry : costEntryList) {
-            //if(goodHostWithoutCheckingLatency(bdEdgeHost.get(distanceEntry.getKey()), mobile)) {
-            sortedByCostValueMap.put(costEntry.getKey(), costEntry.getValue());
-            //}
-        }
-        //firstKey = sortedByValueMap.keySet().iterator().next();
-        Map<Integer, Integer> costRank = new LinkedHashMap<>();
-        //Collections.sort(sortedByCostValueMap);
-        costRank = getRank(sortedByCostValueMap);
-        //sortedHostId_LatencyMap.forEach((key, value) -> System.out.println(key + ": " + value +","+bdEdgeHost.get(value).getTotalMips()+","+bdEdgeHost.get(value).getReserveMips()));
-        //TreeMap<Integer, Double> sortedHostId_LatencyMap = new TreeMap<>();
-        //entriesSortedByValues(HostId_LatencyTreeMap);
-        //sortedByValueMap.forEach((key, value) -> System.out.println(key + ": " + value)+" Rank: "+latencyRank.get(key));
-        if(debug) {
-            for (Map.Entry<Integer, Double> costEntry : sortedByCostValueMap.entrySet()) {
-                System.out.println(costEntry.getKey() + ": " + costEntry.getValue() + " Rank: " + costRank.get(costEntry.getKey()));
-            }
-        }
-        Map<Integer, Integer> combinedRank = new LinkedHashMap<>();
-        Integer selHostId = -1;
-        Integer currentCombinedRank = 0;
-        Integer minimumCombinedRank = 100000;
-        Integer entryCount = 0;
-        for (Map.Entry<Integer, Double> costEntry : sortedByCostValueMap.entrySet()) {
-            /*System.out.println(costEntry.getKey() + ": " + costEntry.getValue() + " Rank: " + costRank.get(costEntry.getKey())
-                    + " LatencyRank: " + latencyRank.get(costEntry.getKey()) + " combined rank: " +
-                    (costRank.get(costEntry.getKey()) + latencyRank.get(costEntry.getKey())));*/
-            if (entryCount == 0) {
-                selHostId = costEntry.getKey();
-                currentCombinedRank = (costRank.get(costEntry.getKey()) + latencyRank.get(costEntry.getKey()));
-                minimumCombinedRank = currentCombinedRank;
-            } else {
-                currentCombinedRank = (costRank.get(costEntry.getKey()) + latencyRank.get(costEntry.getKey()));
-                if (currentCombinedRank < minimumCombinedRank) {
-                    minimumCombinedRank = currentCombinedRank;
-                    selHostId = costEntry.getKey();
-                }
-            }
-            entryCount++;
-        }
+        }*/
         if(debug) System.out.println("Selected Host Id: " + selHostId);
         if (selHostId == -1) {
             //System.out.println("  Mobile device: " + mobile.getId() + "  WAP: " + mobile.getLocation().getServingWlanId() + "  Assigned host:  NULL");

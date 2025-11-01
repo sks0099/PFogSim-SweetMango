@@ -19,6 +19,13 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import java.io.File;
+import com.opencsv.CSVWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import com.opencsv.CSVWriter;
+import edu.boun.ConstantsClass;
 import org.cloudbus.cloudsim.*;
 //import org.cloudbus.cloudsim.Cloudlet;
 import org.cloudbus.cloudsim.core.CloudSim;
@@ -57,6 +64,13 @@ public class MobileDeviceManager extends DatacenterBroker {
 //	private static final int REQUEST_RECEIVED_BY_EDGE_ORCHESTRATOR = BASE + 5;
 	private int taskIdCounter=0;
 	private ArrayList<MobileDevice> mobileDevices;
+
+    ConstantsClass myConstantsClass = new ConstantsClass();
+    boolean generate_task_creation_csv = myConstantsClass.isGenerateTaskCreationCSV();
+    String[] header = {"taskID", "mobileDevId","taskSubmitTime", "taskType", "taskLocLong", "taskLocLat", "taskLocAlt"};
+    //String[][] csvData = {};
+    //String[] csvDataRow= {};
+//    boolean debug=true;
 	
 	
 	/**
@@ -408,6 +422,40 @@ public class MobileDeviceManager extends DatacenterBroker {
 		//set location of the mobile device which generates this task
 		task.setSubmittedLocation(currentLocation);
 
+        if(generate_task_creation_csv){
+//            System.out.println(SimLogger.getInstance().getConsoleTxtFile().getName());
+            //System.out.println(SimLogger.getInstance().getCsvFile().getName());
+            File csvOutputFile = SimLogger.getInstance().getCsvFile();
+            // create CSVWriter object filewriter object as parameter
+            try (CSVWriter writer = new CSVWriter(new FileWriter(csvOutputFile, true))) {
+                if(taskIdCounter==1) writer.writeNext(header); // Write header
+                String[] csvDataRow = {""+taskIdCounter, ""+task.getMobileDeviceId(), ""+CloudSim.clock(), ""+task.getTaskType(),
+                ""+currentLocation.getxPos(), ""+currentLocation.getyPos(), ""+currentLocation.getAltitude()};
+                //for (String[] row : data) {
+                writer.writeNext(csvDataRow); // Write data rows
+                //}
+                //writer.close();
+                //System.out.println("CSV file written successfully with OpenCSV!");
+            } catch (IOException e) {
+                System.err.println("Error writing CSV file: " + e.getMessage());
+            }
+
+            // adding header to csv
+//            String[] header = { "Name", "Class", "Marks" };
+//            writer.writeNext(header);
+
+            // add data to csv
+//            String[] data1 = { "Aman", "10", "620" };
+//            writer.writeNext(data1);
+//            String[] data2 = { "Suraj", "10", "630" };
+//            writer.writeNext(data2);
+
+            // closing writer connection
+
+//            System.out.println("Task Id:"+taskIdCounter+", Mobile device Id: "+task.getMobileDeviceId()+", Task submission time: "+
+//                    CloudSim.clock()+", Task type: "+
+//                    task.getTaskType()+", Task submission location: "+currentLocation);
+        }
 		//add related task to log list
 		SimLogger.getInstance().addLog(CloudSim.clock(),
 				task.getCloudletId(),

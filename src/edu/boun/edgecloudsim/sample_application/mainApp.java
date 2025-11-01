@@ -15,6 +15,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
+import edu.boun.ConstantsClass;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.core.CloudSim;
 
@@ -28,6 +29,11 @@ import edu.boun.edgecloudsim.utils.SimUtils;
 
 import edu.auburn.pFogSim.util.*;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Map;
+
+
 
 /**
  * 
@@ -35,13 +41,12 @@ import edu.auburn.pFogSim.util.*;
  *
  */
 public class mainApp {
-	
 	/**
 	 * Creates main() to run this example
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException {
-				
+
 		// Comment the following line for detailed logging
 		Log.disable();
 
@@ -54,19 +59,20 @@ public class mainApp {
 		String simulation_result_folder = "sim_results";
 
         // 0 for HAFA, 9 for SLV
+        int iterationNumber = -1;
 		//int iterationNumber = 1; // index for the list of n scenarios in properties file is from 0..n-1
-		int iterationNumber = 9; // index for the list of n scenarios in properties file is from 0..n-1
+		//int iterationNumber = 9; // index for the list of n scenarios in properties file is from 0..n-1
 		//DateFormat df = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 		//Date SimulationStartDate = Calendar.getInstance().getTime();
 		//String now = df.format(SimulationStartDate);
 		//for(int iterationNumber = 0; iterationNumber<10; iterationNumber++){
-		System.out.println("Iteration Number started: "+iterationNumber);
-		System.out.println("====================================="+"\n\n");
+
 		String configFile = "";
 		String outputFolder = "";
 		String outFolder2 = "";
 		String edgeDevicesFile = "";
 		String applicationsFile = "";
+        String csvOutputFolder = "";
 		//String linksFile = "scripts/sample_application/config/links_test.xml";
 		//String linksFile = "small_link_test.xml";
 		String linksFile = "links_test.xml";
@@ -93,27 +99,7 @@ public class mainApp {
 			SimLogger.printLine("Simulation setting file, output folder and iteration number are not provided! Using default ones...");*/
 		}
 
-		DataInterpreter.initialize();
-		if(useExistingNetworkTopologyInAllIterations) {
-			try {
-				// Arg iterationNumber added by sks0099 on 8/15/25 to create different links file
-				// while using the DataInterpreter function readFile
 
-				DataInterpreter.readFile(0);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}else{
-			try {
-				// Arg iterationNumber added by sks0099 on 8/15/25 to create different links file
-				// while using the DataInterpreter function readFile
-
-				DataInterpreter.readFile(iterationNumber); } catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
 
 
 		//load settings from configuration file
@@ -122,16 +108,59 @@ public class mainApp {
 			SimLogger.printLine("cannot initialize simulation settings!");
 			System.exit(0);
 		}
+        if(iterationNumber == -1) {
+            iterationNumber = SS.getIterationNumber();
+        }
+        System.out.println("Iteration Number started: "+iterationNumber);
+        System.out.println("====================================="+"\n\n");
+
+        DataInterpreter.initialize();
+        if(useExistingNetworkTopologyInAllIterations) {
+            try {
+                // Arg iterationNumber added by sks0099 on 8/15/25 to create different links file
+                // while using the DataInterpreter function readFile
+
+                DataInterpreter.readFile(0);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }else{
+            try {
+                // Arg iterationNumber added by sks0099 on 8/15/25 to create different links file
+                // while using the DataInterpreter function readFile
+
+                DataInterpreter.readFile(iterationNumber); } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+
+
         // sks0099 added the following if block to automate the selection of folder for simulation results on 20250925
-        if(SS.getMinNumOfMobileDev() < 1000) {
+        if(SS.getMinNumOfMobileDev() < 1000 && SS.getMaxNumOfMobileDev() < 1000) {
             simulation_result_folder = "sim_results_100_600";
+        } else if (SS.getMinNumOfMobileDev() == 1000 && SS.getMaxNumOfMobileDev() == 6000 && SS.getMobileDevCounterSize() == 1000) {
+            simulation_result_folder = "sim_results";
+        }else if (SS.getMinNumOfMobileDev() == 500 && SS.getMaxNumOfMobileDev() == 6000 && SS.getMobileDevCounterSize() == 500) {
+            simulation_result_folder = "sim_results_"+SS.getMinNumOfMobileDev()+"_"+SS.getMobileDevCounterSize()+"_"+SS.getMaxNumOfMobileDev();
+            SimUtils.createFolder(simulation_result_folder);
         }
 
         // sks0099 moved the following 4 lines on 20250925
         outputFolder = simulation_result_folder+"/ite" + iterationNumber;
         outFolder2 = simulation_result_folder+"/consoleruns";
-        SimLogger.fileInitialize(outFolder2);
+
+        ConstantsClass constantsClass = new ConstantsClass();
+        if(constantsClass.isGenerateTaskCreationCSV()){
+            csvOutputFolder = simulation_result_folder+"/csvs"+"/ite" + iterationNumber;
+            SimLogger.fileInitialize(outFolder2,csvOutputFolder);
+        }else {
+            SimLogger.fileInitialize(outFolder2);
+        }
         SimLogger.printLine("Simulation setting file, output folder and iteration number are not provided! Using default ones...");
+
+
 
 		if(SS.getFileLoggingEnabled()){
 			SimLogger.enableFileLog();
