@@ -28,6 +28,7 @@ public final class ConstantsClass {
     public static String linksXmlFile = "links_test.xml";
     private String[] SIMULATION_SCENARIOS;
     private boolean generateTaskCreationCSV;
+    private boolean generatMobileDeviceFogNodePlot;
     private static int min_number_of_mobile_devices;
     private static int max_number_of_mobile_devices;
     private static int mobile_device_counter_size;
@@ -65,6 +66,21 @@ public final class ConstantsClass {
             ex.printStackTrace();
         }
         return generateTaskCreationCSV;
+    }
+
+    public boolean isGenerateMobileDeviceFogNodePlot(){
+        InputStream propInput = null;
+        try {
+            propInput = new FileInputStream(propertiesFile);
+
+            // load a properties file
+            Properties prop = new Properties();
+            prop.load(propInput);
+            generatMobileDeviceFogNodePlot = prop.getProperty("generate_json_for_mobile_device_fog_node_plot").equals("true");
+        }catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return generatMobileDeviceFogNodePlot;
     }
 
     public int getMin_number_of_mobile_devices(){

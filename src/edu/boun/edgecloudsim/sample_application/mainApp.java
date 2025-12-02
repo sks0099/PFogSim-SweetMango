@@ -13,9 +13,11 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 
 import edu.boun.ConstantsClass;
+import edu.boun.edgecloudsim.sample_voronoi_app.JSONFileWriter;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.core.CloudSim;
 
@@ -73,6 +75,7 @@ public class mainApp {
 		String edgeDevicesFile = "";
 		String applicationsFile = "";
         String csvOutputFolder = "";
+        String jsonOutputFolder = "";
 		//String linksFile = "scripts/sample_application/config/links_test.xml";
 		//String linksFile = "small_link_test.xml";
 		String linksFile = "links_test.xml";
@@ -104,6 +107,7 @@ public class mainApp {
 
 		//load settings from configuration file
 		SimSettings SS = SimSettings.getInstance();
+
 		if(SS.initialize(configFile, edgeDevicesFile, applicationsFile, linksFile) == false){
 			SimLogger.printLine("cannot initialize simulation settings!");
 			System.exit(0);
@@ -111,8 +115,15 @@ public class mainApp {
         if(iterationNumber == -1) {
             iterationNumber = SS.getIterationNumber();
         }
-        System.out.println("Iteration Number started: "+iterationNumber);
-        System.out.println("====================================="+"\n\n");
+        String strToPrint = "Iteration Number started: "+iterationNumber;
+        System.out.println(strToPrint);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < strToPrint.length(); i++) {
+            sb.append('=');
+        }
+        //String newString = ;//RandomStringUtils.random(N, charToAppend);//String.join("", Collections.nCopies(strToPrint.length(), '='));
+        //System.out.println(StringUtils.repeat('_', s)"====================================="+"\n");
+        System.out.println(sb+"\n");
 
         DataInterpreter.initialize();
         if(useExistingNetworkTopologyInAllIterations) {
@@ -154,13 +165,24 @@ public class mainApp {
         ConstantsClass constantsClass = new ConstantsClass();
         if(constantsClass.isGenerateTaskCreationCSV()){
             csvOutputFolder = simulation_result_folder+"/csvs"+"/ite" + iterationNumber;
-            SimLogger.fileInitialize(outFolder2,csvOutputFolder);
+            SimLogger.fileInitializeCSV(outFolder2,csvOutputFolder);
+        }else {
+            SimLogger.fileInitialize(outFolder2);
+        }
+        if(constantsClass.isGenerateMobileDeviceFogNodePlot()){
+            jsonOutputFolder = simulation_result_folder+"/jsons"+"/ite" + iterationNumber;
+            SimLogger.fileInitializeJSON(outFolder2,jsonOutputFolder);
         }else {
             SimLogger.fileInitialize(outFolder2);
         }
         SimLogger.printLine("Simulation setting file, output folder and iteration number are not provided! Using default ones...");
 
-
+        if(SS.getGeneratMobileDeviceFogNodePlot()){
+            //System.out.println("hi");
+            JSONFileWriter jsonFW = new JSONFileWriter();
+            jsonFW.createFile("mobile_.json");
+            jsonFW.createFile("fogNode_loc.json");
+        }
 
 		if(SS.getFileLoggingEnabled()){
 			SimLogger.enableFileLog();

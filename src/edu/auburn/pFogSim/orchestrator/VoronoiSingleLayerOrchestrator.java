@@ -59,7 +59,7 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
     Integer preferredHostMinIndex; //= 0;//0;//1;
     Integer preferredHostMaxIndex; //= 2;//1;//4;
     boolean preferredHostIndexAscending = SimSettings.getInstance().getPreferredHostIndexAscending_for_slv(); // true;
-    boolean checkLatencyConditionForCloud = false;
+    boolean checkLatencyConditionForCloud = true;
     // The following array to hold preferredHostMaxIndex ArrayLists
     List<EdgeHost>[] preferredHostLists;// = new List[preferredHostMaxIndex+1];//-preferredHostMinIndex+1];
 

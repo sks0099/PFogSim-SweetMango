@@ -245,8 +245,11 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 		ArrayList<EdgeHost> prospectiveNodes = new ArrayList<EdgeHost>();
 		
 		// Part-A: Find one good node per fog layer, Repeat the following for each layer.
-		for (int levelIter=1; levelIter <= 7; levelIter++) {
-			
+		for (int levelIter=1; levelIter <= 7; levelIter++) { // commented by sks0099 on 20251112
+//        for (int levelIter=1; levelIter < 7; levelIter++) { // added by sks0099 on 20251112
+			if(levelIter == 7){
+                System.out.println("LevelIter = 7");
+            }
 			// Find fog node nearest to mobile device, belonging to this fog layer.
 			EdgeHost nearest = SimManager.getInstance().getEdgeServerManager().findNearestHostByLayer(levelIter, mobile.getLocation());
 			
@@ -269,57 +272,57 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 				
 				//set latencylimitflag to 1;
 				
-			// Identify the best (nearest) node to host the application among prospective nodes.
-			System.out.print("Level: "+levelIter+" Prospective host:  ");
-			while (prospectiveNodes.size() != 0) {
-				
-				this.addNumProspectiveHosts(mobile.getId(), prospectiveNodes.size());
-				
-				//DistRadix sort = new DistRadix(prospectiveNodes, mobile.getLocation()); //use radix sort based on distance from mobile device.
-				BinaryHeap sort = new BinaryHeap(prospectiveNodes.size(), mobile.getLocation(), prospectiveNodes);
-				LinkedList<EdgeHost> nodes = sort.sortNodes();
-				EdgeHost prosHost = nodes.poll();
-					
-				
-				
-				// Find the nearest node capable of hosting the application.
-				while(!goodHost(prosHost, mobile)) {
-					
-					// if mobile flag is not due-to-latency --> set latencylimitflag to 0;
-					
-					prosHost = nodes.poll(); 
-					if (prosHost == null) {
-						break;
-					}
-				}
-				
-				// Search successful in current subtree.
-				if (prosHost != null) {
-					// Good host found for current fog layer. Save it and initiate search for next higher layer.
-					goodNodesPerLayer.add(prosHost);
-					break;
-				}
-				
-				// if latencylimitflag is 1 --> all prospective nodes has sufficient mips, but failed due to latency; 
-				// give just one more chance to expand search, beyond which we assume the nodes are too far anyway ( heuristic) & may have higher latency
-				// if latencylimitflag = 2; then print latency unacceptable for this layer; and break
-				// else set latencylimitflag ++ i.e. set to 2 i.e. give a second chance to expand search; or set to 1 to restart the racking prcess. 
-				// and continue executing the fllowing code..
-				
-				// Search unsuccessful, hence expand search to siblings/neighbors using parent subtree.
-				// Get list of other prospective nodes belonging to this layer in the parent subtree
-				prospectiveNodes = SimManager.getInstance().getEdgeServerManager().getCousins(pud, levelIter, mobile.getId());
-				
-				// If search unsuccessful in entire system
-				// i.e. no node in this fog layer has sufficient resources to host the application.
-				if (prospectiveNodes.size() == 0) {
-					break;
-				}				
-				
-				// Update root of subtree which is being searched
-				pud = SimManager.getInstance().getEdgeServerManager().findPuddleById(pud.getLevel()+1, pud.getParentPuddleId());
+                // Identify the best (nearest) node to host the application among prospective nodes.
+                System.out.print("Level: "+levelIter+" Prospective host:  ");
+                while (prospectiveNodes.size() != 0) {
 
-			}
+                    this.addNumProspectiveHosts(mobile.getId(), prospectiveNodes.size());
+
+                    //DistRadix sort = new DistRadix(prospectiveNodes, mobile.getLocation()); //use radix sort based on distance from mobile device.
+                    BinaryHeap sort = new BinaryHeap(prospectiveNodes.size(), mobile.getLocation(), prospectiveNodes);
+                    LinkedList<EdgeHost> nodes = sort.sortNodes();
+                    EdgeHost prosHost = nodes.poll();
+
+
+
+                    // Find the nearest node capable of hosting the application.
+                    while(!goodHost(prosHost, mobile)) {
+
+                        // if mobile flag is not due-to-latency --> set latencylimitflag to 0;
+
+                        prosHost = nodes.poll();
+                        if (prosHost == null) {
+                            break;
+                        }
+                    }
+
+                    // Search successful in current subtree.
+                    if (prosHost != null) {
+                        // Good host found for current fog layer. Save it and initiate search for next higher layer.
+                        goodNodesPerLayer.add(prosHost);
+                        break;
+                    }
+
+                    // if latencylimitflag is 1 --> all prospective nodes has sufficient mips, but failed due to latency;
+                    // give just one more chance to expand search, beyond which we assume the nodes are too far anyway ( heuristic) & may have higher latency
+                    // if latencylimitflag = 2; then print latency unacceptable for this layer; and break
+                    // else set latencylimitflag ++ i.e. set to 2 i.e. give a second chance to expand search; or set to 1 to restart the racking prcess.
+                    // and continue executing the fllowing code..
+
+                    // Search unsuccessful, hence expand search to siblings/neighbors using parent subtree.
+                    // Get list of other prospective nodes belonging to this layer in the parent subtree
+                    prospectiveNodes = SimManager.getInstance().getEdgeServerManager().getCousins(pud, levelIter, mobile.getId());
+
+                    // If search unsuccessful in entire system
+                    // i.e. no node in this fog layer has sufficient resources to host the application.
+                    if (prospectiveNodes.size() == 0) {
+                        break;
+                    }
+
+                    // Update root of subtree which is being searched
+                    pud = SimManager.getInstance().getEdgeServerManager().findPuddleById(pud.getLevel()+1, pud.getParentPuddleId());
+
+                }
 			}// end if
 		}// end for - levelIter
 
@@ -447,6 +450,9 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 			mobile.setHost(selHost);
 			mobile.makeReservation();
 			System.out.println("  Assigned host: " + selHost.getId());
+            /*if(selHost.getId() == 1){
+                System.out.println("  Assigned host: " + selHost.getId());
+            }*/
             if(selHost.getId() == 0){
                 System.out.println("  Assigned host: " + selHost.getId());
                 unassignedMobileDeviceCount++;

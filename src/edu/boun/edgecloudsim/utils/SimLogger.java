@@ -42,6 +42,7 @@ import edu.boun.edgecloudsim.edge_server.EdgeHost;
 //import edu.auburn.pFogSim.Puddle.Puddle;
 //import edu.auburn.pFogSim.netsim.*;
 import edu.boun.edgecloudsim.energy.EnergyModel;
+import edu.boun.edgecloudsim.sample_voronoi_app.JSONFileWriter;
 
 
 /**
@@ -74,9 +75,14 @@ public class SimLogger {
 
     private static File csvFile;
     private static FileOutputStream fos_csv;
+
+    private static String jsonFilePath;
+    private static String fogNodeLocFile;
+    private static String mobileDeviceLocFile;
 	
 	private static SimLogger singleton = new SimLogger();
     private static ConstantsClass constantsClass = new ConstantsClass();
+    private static long systemTimeInMillis = 0;
 	
 	
 	/*
@@ -85,6 +91,7 @@ public class SimLogger {
 	private SimLogger() {
 		fileLogEnabled = false;
 		printLogEnabled = false;
+        systemTimeInMillis = System.currentTimeMillis();
 	}
 
 	
@@ -147,6 +154,18 @@ public class SimLogger {
     public File getCsvFile() {
         return this.csvFile;
     }
+
+    public String getJSONFilePath() {
+        return this.jsonFilePath;
+    }
+
+    public String getFogNodeLocFile() {
+        return this.fogNodeLocFile;
+    }
+
+    public String getMobileDeviceLocFile() {
+        return this.mobileDeviceLocFile;
+    }
 	
 	
 
@@ -187,17 +206,23 @@ public class SimLogger {
 		ps = new PrintStream(fos);
 	}
 
-    public static void fileInitialize(String outputFolder, String csvOutputFolder) throws IOException {
+    public static void fileInitializeCSV(String outputFolder, String csvOutputFolder) throws IOException {
         File f = new File(outputFolder);
         if (!f.exists()) {
             f.mkdirs();
         }
-        Long systemTimeInMillis = System.currentTimeMillis();
+        //Long systemTimeInMillis = System.currentTimeMillis();
+        if(systemTimeInMillis == 0){
+            systemTimeInMillis = System.currentTimeMillis();
+        }
         //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
+        //textFile = new File(outputFolder, Long.toString(systemTimeInMillis) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
         textFile = new File(outputFolder, Long.toString(systemTimeInMillis) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
         //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) + "_console.txt");
         //textFile = new File("_consoleOut" + Long.toString(System.currentTimeMillis()) + ".txt");
-        textFile.createNewFile();
+        if(!textFile.exists()) {
+            textFile.createNewFile();
+        }
         fos = new FileOutputStream(textFile);
         ps = new PrintStream(fos);
 
@@ -212,6 +237,41 @@ public class SimLogger {
         //textFile = new File("_consoleOut" + Long.toString(System.currentTimeMillis()) + ".txt");
         csvFile.createNewFile();
         fos_csv = new FileOutputStream(csvFile);
+    }
+
+    public static void fileInitializeJSON(String outputFolder, String jsonOutputFolder) throws IOException {
+        File f = new File(outputFolder);
+        if (!f.exists()) {
+            f.mkdirs();
+        }
+        if(systemTimeInMillis == 0){
+            systemTimeInMillis = System.currentTimeMillis();
+        }
+        //Long systemTimeInMillis = System.currentTimeMillis();
+        //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
+        textFile = new File(outputFolder, Long.toString(systemTimeInMillis) +"_"+SimSettings.getInstance().getComputerName()+"_console.txt");
+        //textFile = new File(outputFolder, Long.toString(System.currentTimeMillis()) + "_console.txt");
+        //textFile = new File("_consoleOut" + Long.toString(System.currentTimeMillis()) + ".txt");
+        if(!textFile.exists()) {
+            textFile.createNewFile();
+        }
+        File f_json = new File(jsonOutputFolder);
+        if (!f_json.exists()) {
+            f_json.mkdirs();
+        }
+        JSONFileWriter jsonFW = new JSONFileWriter();
+        jsonFilePath = jsonOutputFolder+"/";
+        mobileDeviceLocFile = jsonFW.createFile(jsonOutputFolder+"/", Long.toString(systemTimeInMillis) +"_"+SimSettings.getInstance().getComputerName()+"_"+"mobile_loc.json");
+        fogNodeLocFile = jsonFW.createFile(jsonOutputFolder+"/", Long.toString(systemTimeInMillis) +"_"+SimSettings.getInstance().getComputerName()+"_"+"fogNode_loc.json");
+        //fos = new FileOutputStream(outputFolder, textFile);
+        //ps = new PrintStream(fos);
+
+
+        /*csvFile = new File(jsonOutputFolder, Long.toString(systemTimeInMillis)+"_"+ constantsClass.getMin_number_of_mobile_devices()+"_"+
+                constantsClass.getMobile_device_counter_size()+"_"+constantsClass.getMax_number_of_mobile_devices()
+                +"_"+SimSettings.getInstance().getComputerName()+".csv");
+        csvFile.createNewFile();
+        fos_csv = new FileOutputStream(csvFile);*/
     }
 	
 	/**

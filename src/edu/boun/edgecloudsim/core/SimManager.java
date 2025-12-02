@@ -12,7 +12,10 @@
 
 package edu.boun.edgecloudsim.core;
 
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +23,8 @@ import java.util.TreeMap;
 
 import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
 import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
+import edu.boun.ConstantsClass;
+import edu.boun.edgecloudsim.sample_voronoi_app.JSONFileWriter;
 import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.cloudbus.cloudsim.Datacenter;
@@ -45,6 +50,11 @@ import edu.boun.edgecloudsim.task_generator.LoadGeneratorModel;
 import edu.boun.edgecloudsim.network.NetworkModel;
 import edu.boun.edgecloudsim.utils.EdgeTask;
 import edu.boun.edgecloudsim.utils.SimLogger;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import java.util.Set;
 
 
 /**
@@ -75,7 +85,8 @@ public class SimManager extends SimEntity {
 	private int[] wapIdList = new int [numOfMobileDevice];
 
 	private static SimManager instance = null;
-	
+    private Object ParseException;
+
 //	boolean debug = true;
 	/**
 	 * Constructor
@@ -150,8 +161,142 @@ public class SimManager extends SimEntity {
 		
 		//Assign hosts to devices, as selected by Service placement approach
 		mobileDeviceManager.creatMobileDeviceList(numOfMobileDevice);
+        ConstantsClass constants=new ConstantsClass();
+        if(constants.isGenerateMobileDeviceFogNodePlot()){
+            //Create fogNode_loc.json and mobile_loc.json
+            String fogNode_loc = SimLogger.getInstance().getFogNodeLocFile();
+            String mobile_loc = SimLogger.getInstance().getMobileDeviceLocFile();
+            String jsonFilePath = SimLogger.getInstance().getJSONFilePath();
+            System.out.println(fogNode_loc+"\t"+mobile_loc);
+            JSONParser jsonParser = new JSONParser();
+            JSONObject jsonObject = new JSONObject();
+            //JSONArray jsonArray_fns = new JSONArray();
+            JSONObject fns = new JSONObject();
+            int objIndex = 0;
+//            fns.put("mobileDeviceNum", numOfMobileDevice);
+            try {
+                Reader reader = new FileReader(jsonFilePath+fogNode_loc);//fileName);
+                Object obj = jsonParser.parse(reader);//new FileReader("./"+fileName));
+                jsonObject = (JSONObject) obj;
+                //System.out.println(jsonObject.keySet());
+                Set<String> keys = jsonObject.keySet();
+                //JSONObject tempElement = new JSONObject();
+                for (String key : keys) {
+                    System.out.println("Key: " + key);
+                    fns.put(key, jsonObject.get(key));
+                }
+//                if(!tempElement.isEmpty()) {
+//                    jsonArray_fns.add(tempElement);
+//                }
+                //for(String key :jsonObject.keySet()
+                //jsonArray_fns.add(jsonObject);
+                jsonObject = new JSONObject();
+                for(int i=0;i<edgeServerManager.getDatacenterList().size();i++){
+                //System.out.println(edgeServerManager.getDatacenterList().get(i).getId());
+                //System.out.println(((EdgeHost) edgeServerManager.getDatacenterList().get(i).getHostList().get(0)).getLocation());
+
+                    //JSONArray jsonArray = new JSONArray();
+                    JSONObject ele = new JSONObject();
+                    //System.out.println("jsonObject.size() = "+jsonObject.size());
+                    objIndex = i;//jsonObject.size();
+
+                    //Object obj = jsonParser.parse(new FileReader(fileName));
+                    //System.out.println("jsonObject = "+jsonObject);
+
+
+
+                    ele.put("fogNodeId", edgeServerManager.getDatacenterList().get(i).getId());
+                    ele.put("longitude", ((EdgeHost) edgeServerManager.getDatacenterList().get(i).getHostList().get(0)).getLocation().getXPos());
+                    ele.put("latitude", ((EdgeHost) edgeServerManager.getDatacenterList().get(i).getHostList().get(0)).getLocation().getYPos());
+                    ele.put("altitude", ((EdgeHost) edgeServerManager.getDatacenterList().get(i).getHostList().get(0)).getLocation().getAltitude());
+
+                    //jsonArray.add(ele);
+
+                    //System.out.println("jsonArray = "+jsonArray);
+
+                    //jsonObject.put(objIndex, jsonArray);
+                    jsonObject.put(objIndex, ele);
+                    //System.out.println("jsonObject = "+jsonObject);
+
+                }
+            } catch (ParseException | IOException e) {
+                e.printStackTrace();
+            }
+            // Constructs a FileWriter given a file name, using the platform's default charset
+//            fns.put("fogNodes", jsonObject);
+            //jsonArray_fns.add(jsonObject);
+//            fns.put(numOfMobileDevice, jsonArray_fns);
+            fns.put(numOfMobileDevice, jsonObject);
+            FileWriter myFile = new FileWriter(jsonFilePath+fogNode_loc);//, true);
+
+            myFile.write(fns.toJSONString());
+            myFile.flush();
+            myFile.close();
+
+            jsonParser = new JSONParser();
+            jsonObject = new JSONObject();
+
+            //JSONArray jsonArray_mds = new JSONArray();
+            JSONObject mds = new JSONObject();
+//            mds.put("mobileDeviceNum", numOfMobileDevice);
+
+            try {
+                Reader reader = new FileReader(jsonFilePath+mobile_loc);//fileName);
+                Object obj = jsonParser.parse(reader);//new FileReader("./"+fileName));
+                jsonObject = (JSONObject) obj;
+                Set<String> keys = jsonObject.keySet();
+                //JSONObject tempElement = new JSONObject();
+                for (String key : keys) {
+                    System.out.println("Key: " + key);
+                    mds.put(key, jsonObject.get(key));
+                }
+                jsonObject = new JSONObject();
+                for(int i=0;i<numOfMobileDevice;i++){
+
+                    //JSONArray jsonArray = new JSONArray();
+                    JSONObject ele = new JSONObject();
+                    //System.out.println("jsonObject.size() = "+jsonObject.size());
+                    objIndex = i;//jsonObject.size();
+
+                    //Object obj = jsonParser.parse(new FileReader(fileName));
+                    //System.out.println("jsonObject = "+jsonObject);
+
+
+
+                    ele.put("mobileDeviceId", mobileDeviceManager.getMobileDevices().get(i).getId());
+                    ele.put("longitude", mobileDeviceManager.getMobileDevices().get(i).getLocation().getXPos());
+                    ele.put("latitude", mobileDeviceManager.getMobileDevices().get(i).getLocation().getYPos());
+                    ele.put("altitude", mobileDeviceManager.getMobileDevices().get(i).getLocation().getAltitude());
+
+                    //jsonArray.add(ele);
+
+                    //System.out.println("jsonArray = "+jsonArray);
+
+//                    jsonObject.put(objIndex, jsonArray);
+                    jsonObject.put(objIndex, ele);
+                }
+            } catch (ParseException | IOException e) {
+                e.printStackTrace();
+            }
+            // Constructs a FileWriter given a file name, using the platform's default charset
+
+            myFile = new FileWriter(jsonFilePath+mobile_loc);//, true);
+
+            mds.put(numOfMobileDevice, jsonObject);
+
+            myFile.write(mds.toJSONString());
+
+            myFile.flush();
+            myFile.close();
+        }
+
 		for (MobileDevice mobile: mobileDeviceManager.getMobileDevices()) {
 			edgeOrchestrator.assignHost(mobile);
+            if(mobile.getHost() != null) {
+                System.out.println(mobile.getId() + ": " + mobile.getAssignHostStatus() + ", host id: " + mobile.getHost().getId());
+            }else{
+                System.out.println(mobile.getId() + ": " + mobile.getAssignHostStatus() + ", host id: NULL");
+            }
 		}
         if(edgeOrchestrator instanceof HAFAOrchestrator){
 //            HashMap<MobileDevice, EdgeHost> mobileHostAssigned = new HashMap<>();

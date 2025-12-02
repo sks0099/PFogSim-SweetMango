@@ -15,6 +15,7 @@ import java.io.IOException;
 public class JSONFileWriter {
     //private static FileWriter crunchifyFile;
     private static FileWriter myFile;
+    private static String folder;
     @SuppressWarnings("unchecked")
     public String createFile(String fileName){
         //JSONObject fileName = new JSONObject();
@@ -34,8 +35,36 @@ public class JSONFileWriter {
             // Constructs a FileWriter given a file name, using the platform's default charset
             myFile = new FileWriter(fileName);
             myFile.write(jsonObj.toJSONString());
-            myLog("Successfully Copied JSON Object to File...");
-            myLog("\nJSON Object: " + jsonObj);
+            //myLog("Successfully Copied JSON Object to File...");
+            //myLog("\nJSON Object: " + jsonObj);
+            myFile.flush();
+            myFile.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return fileName;
+    }
+
+    public String createFile(String folder, String fileName){
+        //JSONObject fileName = new JSONObject();
+        //JSONObject jsonObj = new JSONObject();
+        try {
+            // JSON object.
+            // Key value pairs are unordered.
+            // JSONObject supports java.util.Map interface.
+            JSONObject jsonObj = new JSONObject();
+
+            JSONObject ele = new JSONObject();
+            ele.put("name", "dummy");
+            ele.put("longitude", 0.12);
+            ele.put("latitude", 0.13);
+            ele.put("altitude", 0.0);
+
+            // Constructs a FileWriter given a file name, using the platform's default charset
+            myFile = new FileWriter(folder+fileName);
+            myFile.write(jsonObj.toJSONString());
+            //myLog("Successfully Copied JSON Object to File...");
+            //myLog("\nJSON Object: " + jsonObj);
             myFile.flush();
             myFile.close();
         } catch (IOException e) {

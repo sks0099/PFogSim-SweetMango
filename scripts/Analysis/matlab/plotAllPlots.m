@@ -15,12 +15,22 @@ function [] = plotAllPlots()
     config = configuration;
     % config.IterationCount = 1;
     % config.FolderPath = "<insert custom file path here>"; % To use a non-default folder, uncomment this line with your folder path.
-    isNumberOfMobileDevicesBetween100And600 = 0
+    isNumberOfMobileDevicesBetween100And600 = 0;
+    isRandomSeedSupplied = 1;
+    randomSeed = 567;
     if(isNumberOfMobileDevicesBetween100And600 == 0)
         %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results"
-        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_500_500_6000"
+        %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_500_500_6000";
+        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_1000_6000\AfterHAFAModification\rsHAFACombined";
     else
-        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600"
+        %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600"
+        %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600_different_rand_seeds";
+        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600_different_rand_seeds_HAFA_modified";
+        if(isRandomSeedSupplied == 1)
+            %config.FolderPath = strcat(config.FolderPath,'/rs',string(randomSeed));
+            %config.FolderPath = strcat(config.FolderPath,'/allrs');
+            config.FolderPath = strcat(config.FolderPath,'/allcombined');
+        end
     end
     config = config.finishConfig();
     % Use the following lines to manually adjust configuration details if needed.

@@ -16,7 +16,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
     stepOfMobileDeviceLoop = config.MobileDeviceStep;
     %endOfMobileDeviceLoop = 500; %config.MaximumMobileDevices;
     endOfMobileDeviceLoop = config.MaximumMobileDevices;
-    numOfMobileDevices = (endOfMobileDeviceLoop - startOfMobileDeviceLoop)/stepOfMobileDeviceLoop + 1;
+    numOfMobileDevices = int32((endOfMobileDeviceLoop - startOfMobileDeviceLoop)/stepOfMobileDeviceLoop + 1);
 
     all_results = zeros(size(scenarioType,1), numOfMobileDevices, numOfSimulations);
     min_results = zeros(size(scenarioType,1), numOfMobileDevices);
@@ -74,6 +74,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
                         error(strcat('Error: SIMRESULT files missing. Iterations expected: ', int2str(numOfSimulations), '. Iterations found: ', int2str(length(allFiles)), '.'))
                     end
                     filePath = strcat(allFiles(s).folder, '/', allFiles(s).name);
+                    %disp(filePath)
                     fileData = readmatrix(filePath, 'Delimiter', ';','Range', rowOfset+1);
                     value = fileData(1,columnOfset);
                     if(calculatePercentage==1)
@@ -85,7 +86,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
             end
         end
     end
-    
+    disp(all_results)
     if(numOfSimulations == 1)
         results = all_results;
     else
@@ -183,10 +184,20 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
             hold on;
         end
     end
+
+    %TextLocation('Random seeds: 567','Location','northeast');
+   
     lgnd = legend(config.ScenarioLabelsList,'Location','best');
+    
     if(config.ColorPlot == 1)
         set(lgnd,'color','none');
     end
+
+    %plot(NaN, NaN, 'w', 'HandleVisibility', 'off', 'DisplayName', 'Note: Data collected on 2025-11-07'); 
+
+    % Add the legend
+    %legend('Location', 'best');
+    %hold off;
     
     hold off;
     % axis square
@@ -201,8 +212,16 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
     if isempty(graphTitle)
         graphTitle = strcat(yLabel, ' - ', strrep(appType, '_', ' '));
     end
+
+    
+
     title(graphTitle, 'FontSize', 12);
+    %annotation('textbox',lgnd.Position,'String',{'';'';'Random seed: 123'},'VerticalAlignment','Bottom','Edgecolor','none');
     annotation('rectangle',[0 0 1 1],'Color','w');
+
+    %plot(1:10);
+    
+
     plotOutput = hFig;
     %set(0,'DefaultFigureVisible','on');
     %figure('Visible','on');     
