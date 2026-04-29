@@ -247,9 +247,9 @@ public class HAFAOrchestrator extends EdgeOrchestrator {
 		// Part-A: Find one good node per fog layer, Repeat the following for each layer.
 		for (int levelIter=1; levelIter <= 7; levelIter++) { // commented by sks0099 on 20251112
 //        for (int levelIter=1; levelIter < 7; levelIter++) { // added by sks0099 on 20251112
-			if(levelIter == 7){
-                System.out.println("LevelIter = 7");
-            }
+//			if(levelIter == 7){
+//                System.out.println("LevelIter = 7");
+//            }
 			// Find fog node nearest to mobile device, belonging to this fog layer.
 			EdgeHost nearest = SimManager.getInstance().getEdgeServerManager().findNearestHostByLayer(levelIter, mobile.getLocation());
 			

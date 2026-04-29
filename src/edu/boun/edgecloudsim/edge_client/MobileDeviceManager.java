@@ -67,7 +67,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 
     ConstantsClass myConstantsClass = new ConstantsClass();
     boolean generate_task_creation_csv = myConstantsClass.isGenerateTaskCreationCSV();
-    String[] header = {"taskID", "mobileDevId","taskSubmitTime", "taskType", "taskLocLong", "taskLocLat", "taskLocAlt"};
+    String[] header = {"taskID", "mobileDevId","taskSubmitTime", "taskType", "taskLocLong", "taskLocLat", "taskLocAlt","maxDelay","taskDestLocLong","taskDestLocLat","taskDestLocAlt","taskSourceDestDistKm"};
     //String[][] csvData = {};
     //String[] csvDataRow= {};
 //    boolean debug=true;
@@ -429,8 +429,14 @@ public class MobileDeviceManager extends DatacenterBroker {
             // create CSVWriter object filewriter object as parameter
             try (CSVWriter writer = new CSVWriter(new FileWriter(csvOutputFile, true))) {
                 if(taskIdCounter==1) writer.writeNext(header); // Write header
+                double distBetweenMobileAndHostKm = DataInterpreter.measure(currentLocation.getYPos(), currentLocation.getXPos(),
+                        SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getYPos(),
+                        SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getXPos())/1000.0;
                 String[] csvDataRow = {""+taskIdCounter, ""+task.getMobileDeviceId(), ""+CloudSim.clock(), ""+task.getTaskType(),
-                ""+currentLocation.getxPos(), ""+currentLocation.getyPos(), ""+currentLocation.getAltitude()};
+                ""+currentLocation.getxPos(), ""+currentLocation.getyPos(), ""+currentLocation.getAltitude(), ""+task.getMaxDelay(),
+                        ""+SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getxPos(),
+                        ""+SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getyPos(),
+                        ""+task.getSubmittedLocation().getAltitude(),""+distBetweenMobileAndHostKm};
                 //for (String[] row : data) {
                 writer.writeNext(csvDataRow); // Write data rows
                 //}

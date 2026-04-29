@@ -86,7 +86,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
             end
         end
     end
-    disp(all_results)
+    %disp(all_results)
     if(numOfSimulations == 1)
         results = all_results;
     else
@@ -185,7 +185,7 @@ function plotOutput = plotGenericResult(rowOfset, columnOfset, yLabel, appType, 
         end
     end
 
-    %TextLocation('Random seeds: 567','Location','northeast');
+    TextLocation('Random seed: 567','Location','northeast');
    
     lgnd = legend(config.ScenarioLabelsList,'Location','best');
     

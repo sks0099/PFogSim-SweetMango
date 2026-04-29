@@ -164,8 +164,13 @@ def get_df_dict(plot_type_list):
         df_sum['mips7_p']=df_sum['mips7']/df_sum['totTask']
         # print(df_sum)
         df_only_percent = df_sum.drop(columns=['iteNum','mips1','mips2','mips3','mips4','mips5','mips6','mips7','totTask'])
-        df_only_percent.rename(columns={'mips1_p': 'MIPS1', 'mips2_p': 'MIPS2', 'mips3_p': 'MIPS3', 'mips4_p': 'MIPS4'
-                                        , 'mips5_p': 'MIPS5', 'mips6_p': 'MIPS6', 'mips7_p': 'MIPS7'}, inplace=True)
+        if plot_type == 'HAFA':
+            df_only_percent.rename(columns={'mips1_p': 'MIPS1 HAFA', 'mips2_p': 'MIPS2 HAFA', 'mips3_p': 'MIPS3 HAFA', 'mips4_p': 'MIPS4 HAFA'
+                                            , 'mips5_p': 'MIPS5 HAFA', 'mips6_p': 'MIPS6 HAFA', 'mips7_p': 'MIPS7 HAFA'}, inplace=True)
+        elif plot_type == 'Voronoi':
+            df_only_percent.rename(columns={'mips1_p': 'MIPS1 Voronoi', 'mips2_p': 'MIPS2 Voronoi', 'mips3_p': 'MIPS3 Voronoi',
+                                            'mips4_p': 'MIPS4 Voronoi'
+                , 'mips5_p': 'MIPS5 Voronoi', 'mips6_p': 'MIPS6 Voronoi', 'mips7_p': 'MIPS7 Voronoi'}, inplace=True)
         df['mobDevNum'] = df['mobDevNum'].astype(int)
         df_dict[plot_type] = df_only_percent
     return df_dict
@@ -178,13 +183,13 @@ def plot_stackbars(plot_type_list, df_dict):
     outputDir = 'hostStatPlots'
     os.makedirs(outputDir, exist_ok=True)
     # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharex=True, sharey=True)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
     # fig, ax = plt.subplots()
     # bar_width = 0.35
-    fig_file = outputDir + '/hostStatPlot_HAFA_Voronoi' + '.svg'
+    fig_file = outputDir + '/hostStatPlot_HAFA_Voronoi_separated' + '.svg'
     fig_title = 'Relative tasks assigned to different MIPS group'
     mobDevNum = df_dict['HAFA']['mobDevNum']
-    bar_width = 0.35  # Width of the grouped bars
+    bar_width = 1.0 #0.35  # Width of the grouped bars
     x_positions = np.arange(len(mobDevNum))  # The x-locations for the groups
     group_no = 1
     for key in df_dict:
@@ -207,11 +212,11 @@ def plot_stackbars(plot_type_list, df_dict):
         # ax = df_dict[key].plot(x='mobDevNum', kind='bar', stacked=True, title=fig_title, figsize=(10, 6))
 
         if group_no == 1:
-            df_dict[key].plot(x='mobDevNum', kind="bar", stacked=True, width=0.15,
+            df_dict[key].plot(x='mobDevNum', kind="bar", stacked=True, width=0.25,
                               ax=ax, position=1)
         elif group_no == 2:
-            df_dict[key].plot(x='mobDevNum', kind="bar", stacked=True, width=0.15,
-                           ax=ax, position=0, hatch='//')
+            df_dict[key].plot(x='mobDevNum', kind="bar", stacked=True, width=0.25,
+                           ax=ax, position=-0.25, hatch='//')
         # First set (DF1)
         # if group_no == 1:
         #     ax.bar(x_positions - bar_width / 2, df_dict[key], bar_width, label='DF1 Stack 1', color='skyblue')
@@ -226,7 +231,17 @@ def plot_stackbars(plot_type_list, df_dict):
     ax.set_ylabel('Percentage of tasks sent to MIPS groups')
     ax.set_xlabel('Number of mobile devices')
 
-    ax.set_xlim(right=len(df_dict['HAFA']) - 0.5)
+    ax.set_xlim(right=len(df_dict['HAFA']) - 0.3) #-0.5)
+    # ax.legend(labelspacing=0.2, handlelength=1.0, handleheight=0.5, handletextpad=0.3, borderpad=0.5, loc='best')#,
+             # bbox_transform=fig.transFigure)
+    box = ax.get_position()
+    width_factor = 0.8 #0.8
+    ax.set_position([box.x0, box.y0, box.width * width_factor, box.height])
+    bars, bar_labels = ax.get_legend_handles_labels()
+    # ax2.legend(lines + bars, labels + bar_labels, loc='upper left')
+    ax.legend(bars, bar_labels, labelspacing=0.3, handlelength=0.8, handleheight=0.6, handletextpad=0.3, borderpad=0.6,
+               prop={'size': 9}, bbox_to_anchor=(1.3, 1))
+    plt.title('Relative percentage of tasks sent to different\nMIPS capacity groups vs No. of Mobile devices')
     plt.savefig(fig_file, format="svg")
     # plt.show()
 

@@ -352,7 +352,13 @@ public class SimManager extends SimEntity {
 //                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
 //			sortedMap.forEach((key, value) -> SimLogger.printLine(key + ": " + value+","+bdEdgeHost.get(value).getTotalMips()+","
 //                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
-            sortedMap.forEach((key, value) -> SimLogger.printLine("MD Id: "+key + " => Host Id: " + value+" TMIPS: "+bdEdgeHost.get(value).getTotalMips()+" RMIPS: "
+//            for (Map.Entry<Integer, Integer> entry : sortedMap.entrySet()) {
+//                int key = entry.getKey();
+//                int value = entry.getValue();
+//                SimLogger.printLine("MD Id: "+key + " => Host Id: " + value+" TMIPS: "+bdEdgeHost.get(value).getTotalMips()+" RMIPS: "
+//                        +bdEdgeHost.get(value).getReserveMips()+" Search Hops: "+bdEdgeHost.get(value).getHop());
+//            }
+          sortedMap.forEach((key, value) -> SimLogger.printLine("MD Id: "+key + " => Host Id: " + value+" TMIPS: "+bdEdgeHost.get(value).getTotalMips()+" RMIPS: "
                     +bdEdgeHost.get(value).getReserveMips()+" Search Hops: "+bdEdgeHost.get(value).getHop()));
             //System.out.println("Average search hops: "+edgeOrchestrator.getAverageHops());
             SimLogger.printLine("Average search hops: "+edgeOrchestrator.getAverageHops());

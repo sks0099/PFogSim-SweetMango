@@ -8,7 +8,7 @@ import generateHostStatPlot as ghsp
 
 class plotGenericResult:
 
-    def __init__(self, rowOfset, columnOfset, yLabel, appType, calculatePercentage, config, graphTitle='', yScale=''):
+    def __init__(self, rowOfset, columnOfset, yLabel, appType, calculatePercentage, config, graphTitle='', yScale='', randomSeed=''):
         # Constructor method (initializer)
         # Initializes instance attributes unique to each object
         self.rowOfset = rowOfset
@@ -21,6 +21,7 @@ class plotGenericResult:
         self.yScale = yScale
         self.df_dict = ghsp.get_df_dict(['HAFA','Voronoi'])
         self.plotStackedBar = False
+        self.randomSeed = randomSeed
 
 
     def get_filenames_with_pattern(self, root_dir, pattern):
@@ -81,9 +82,11 @@ class plotGenericResult:
         #     appType = 'ALL_APPS'
         #end
 
-        if 'appType' not in locals() and 'appType' not in globals():
+        # if 'appType' not in locals() and 'appType' not in globals():
             # Code to run if 'appType' does not exist
-            appType = 'ALL_APPS'
+            # appType = 'ALL_APPS'
+        if len(self.appType) == 0:
+            self.appType = 'ALL_APPS'
 
         # Get contents of the target directory
         # dir_contents = dir(folderPath)
@@ -112,7 +115,7 @@ class plotGenericResult:
 
         #end
 
-        for s in range (1, numOfSimulations + 1):
+        for s in range (1, int(numOfSimulations) + 1):
             # for i in range (1, size(scenarioType,1)):
             for i in range(1, len(scenarioType)+1):
                 #for i=1:count_matching_folders
@@ -126,7 +129,7 @@ class plotGenericResult:
                     # fileName_pattern = '**/*SIMRESULT_*' + scenarioType[i] + '*_NEXT_FIT_*' + str(mobileDeviceNumber) + '*DEVICES_*' + appType + '*_GENERIC.log'
                     # pattern_info = r"SIMRESULT_(?P<scenario>[\w_\s]+)_NEXT_FIT_(?P<devices>\d+)DEVICES_(?P<appType>[\w \s]+)_GENERIC"
                     fileName_pattern = r"SIMRESULT_*" + scenarioType[i-1] + "*_NEXT_FIT_*" + str(
-                        mobileDeviceNumber) + "*DEVICES_*" + appType + "*_GENERIC.log"
+                        mobileDeviceNumber) + "*DEVICES_*" + self.appType + "*_GENERIC.log"
 
                     # if exist(fileName, 'file')
                     #oldFolder = cd(folderPath)
@@ -381,8 +384,10 @@ class plotGenericResult:
             # for j in range (len(scenarioType,1)+1):
             for j in range(len(scenarioType)):
                 # plt.grid()
-
-                y = results[j, :]
+                if results.ndim == 1:
+                    y = results
+                else:
+                    y = results[j] #results[j, :]
 
                 # plt.title("Linear plot of y")
 
@@ -538,6 +543,10 @@ class plotGenericResult:
                         #     ax.bar(x_positions + bar_width / 2, df_dict[key], bar_width, label='DF2 Stack 2',
                         #            color='red')
                         # group_no += 1
+                # print(f'j={j}: len(self.config.LineColors):{len(self.config.LineColors)}')
+                # print(f'j={j}: len(self.config.lineStyle):{len(self.config.lineStyle)}')
+                # print(f'j={j}: len(self.config.ScenarioLabelsList):{len(self.config.ScenarioLabelsList)}')
+                # print(f'j={j}: len(self.config.lineWidth):{len(self.config.lineWidth)}')
                 ax.plot(x, y, color=tuple(self.config.LineColors[j]), linestyle=self.config.lineStyle[j],
                         label=self.config.ScenarioLabelsList[j], linewidth=self.config.lineWidth[j])
             #end
@@ -610,7 +619,10 @@ class plotGenericResult:
         legend_handles = legend.legend_handles
         # print(len(legend.legend_handles))
         for legend_i in range(len(legend_handles)):
-            legend_handles[legend_i].set_label(self.config.ScenarioLabelsList[legend_i])  # Change label
+            if len(self.randomSeed) > 0:
+                legend_handles[legend_i].set_label(self.config.ScenarioLabelsList[legend_i]+'(Random seed: '+self.randomSeed+')')
+            else:
+                legend_handles[legend_i].set_label(self.config.ScenarioLabelsList[legend_i])  # Change label
             legend_handles[legend_i].set_color(self.config.LineColors[legend_i])  # Change color
             legend_handles[legend_i].set_marker(self.config.markerStyle[legend_i])  # Change marker
 
@@ -633,8 +645,8 @@ class plotGenericResult:
         # legend_handles[1].set_label('Modified Cosine')  # Change label
         # legend_handles[1].set_color('purple')  # Change color
         # legend_handles[1].set_marker('^')  # Change marker
-        if len(graphTitle) == 0:
-            graphTitle = self.yLabel + ' - ' + appType.replace('_', ' ')
+        #if len(graphTitle) == 0:
+        graphTitle = self.yLabel + ' - ' + self.appType.replace('_', ' ')
             # end
         # title(graphTitle, 'FontSize', 12)
         plt.title(graphTitle, fontsize = 12)

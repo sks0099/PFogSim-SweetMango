@@ -59,6 +59,7 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
     Integer preferredHostMinIndex; //= 0;//0;//1;
     Integer preferredHostMaxIndex; //= 2;//1;//4;
     boolean preferredHostIndexAscending = SimSettings.getInstance().getPreferredHostIndexAscending_for_slv(); // true;
+    boolean includeCloudAsPreferredHost = true; // If true, cloud is included as usual fog node otherwise it is excluded.
     boolean checkLatencyConditionForCloud = true;
     // The following array to hold preferredHostMaxIndex ArrayLists
     List<EdgeHost>[] preferredHostLists;// = new List[preferredHostMaxIndex+1];//-preferredHostMinIndex+1];
@@ -170,7 +171,7 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
         for (Datacenter node : SimManager.getInstance().getLocalServerManager().getDatacenterList()) {
             //allHosts.add(((EdgeHost) node.getHostList().get(0)));
             //bdEdgeHost.put(((EdgeHost) node.getHostList().get(0)).getId(), ((EdgeHost) node.getHostList().get(0)));
-            //System.out.println("EdgeHost: Id=" + ((EdgeHost) node.getHostList().get(0)).getId() + " Total MIPS=" + ((EdgeHost) node.getHostList().get(0)).getTotalMips());
+//            System.out.println("EdgeHost: Id=" + ((EdgeHost) node.getHostList().get(0)).getId() + " Total MIPS=" + ((EdgeHost) node.getHostList().get(0)).getTotalMips());
             if (((EdgeHost) node.getHostList().get(0)).getId() == 0) {
                 currentMIPS = ((EdgeHost) node.getHostList().get(0)).getTotalMips();
                 hostListIndexWiseMips.add(currentMIPS);
@@ -424,7 +425,10 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
             String value = maxNumOfMobileForHost.get(key).toString();
             System.out.println(key + ": " + value);
         }*/
-        maxNumOfMobileForHost.forEach((key, value) -> System.out.println(key.getId() + ": " + value));
+        for (Map.Entry<EdgeHost, Integer> entry : maxNumOfMobileForHost.entrySet()) {
+            System.out.println(entry.getKey() + ": " + entry.getValue());
+        }
+//        maxNumOfMobileForHost.forEach((key, value) -> System.out.println(key.getId() + ": " + value));
     }
 
     /*static <K,V extends Comparable<? super V>>
@@ -845,95 +849,12 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
         double hostNetworkDelay = 0.0;
         double totalDelay = 0.0;
         Integer preferredHostsCheckedCount = 0;
-        /*double hostProcessingDelay = (mobile.getTaskLengthRequirement()*mobileTaskLengthRequirementMultiplier) / nearest.getVmScheduler().getPeCapacity();
-        double hostProcessingDelayUsingAvailableMIPS = (mobile.getTaskLengthRequirement()*mobileTaskLengthRequirementMultiplier) / (nearest.getTotalMips()-nearest.getReserveMips());
-        if(hostProcessingDelayUsingAvailableMIPS > hostProcessingDelay){
-            System.out.println("yiikgh3463453");
-        }
-        double acceptableLatency = mobile.getLatencyRequirement();
-        double hostNetworkDelay = ((ESBModel)SimManager.getInstance().getNetworkModel()).getDelay(mobile.getLocation(), nearest.getLocation());
 
-        //Consider round trip latency - assuming user is co-located with device, in current test environment.
-        hostNetworkDelay += hostNetworkDelay;
-        if(!maxNumOfMobileForHost.containsKey(nearest)){
-            Integer maxMobileForHost = (int)(nearest.getAvailableMips()/(mobileTaskLengthRequirementMultiplier * mobile.getTaskLengthRequirement()));
-            maxNumOfMobileForHost.put(nearest, maxMobileForHost);
-        }
-        double totalDelay = hostProcessingDelay + hostNetworkDelay;
-        if (totalDelay < latencySafetyFactor * acceptableLatency &&
-                preferredHosts.contains(nearest) &&
-                (!Host_AssignedMobileCount.containsKey(nearest) ||
-                        (Host_AssignedMobileCount.containsKey(nearest) &&
-                                Host_AssignedMobileCount.get(nearest) < maxNumOfMobileForHost.get(nearest)))) {
-                                //Host_AssignedMobileCount.get(nearest) < maximumMobileAssignment))) {
-            //System.out.println();
-            //return true;
-            //prospectiveNodes.add(pointToHostMapXY.get(hostPoint.convertLongLatPointToXYCoordinates()));
-            prospectiveNodes.add(nearest);
-        }*/
         NeighborsOfNodesAddedToProspectiveNodes.add(mobileAccessHost);//nearest);
 
-        //System.exit(8686899);
         HostId_Latency = new HashMap<Integer, Double>();
         EdgeHost selHostConsideringLatencyOnly = null;
         System.out.print("Prospective node processing hostIds for mobile device Id: "+mobile.getId()+"\n");
-        /*while(prospectiveNodes.size() < maxProspectiveNodeCount && preferredHosts.size() > preferredHostsCheckedCount){
-            //System.out.println("myVoronoiNeighborSiteMap size = " + myVoronoiNeighborSiteMap.size());
-            List<Point> myVoronoiNeighborsOfNearest = myVoronoiNeighborSiteMap.get(new Point(NeighborsOfNodesAddedToProspectiveNodes.get(0).getLocation().getXPos(),
-                    NeighborsOfNodesAddedToProspectiveNodes.get(0).getLocation().getYPos()));
-            NeighborsOfNodesAddedToProspectiveNodes.remove(NeighborsOfNodesAddedToProspectiveNodes.get(0));
-            //populateMaxMobileForHost();
-            Double consumerDistance = 0.0;
-            for (Point p : myVoronoiNeighborsOfNearest) {
-                EdgeHost pEdgeHost = pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates());
-                if(!NeighborsOfNodesAddedToProspectiveNodes.contains(pEdgeHost)) NeighborsOfNodesAddedToProspectiveNodes.add(pEdgeHost);
-                if(!prospectiveNodes.contains(pEdgeHost) && preferredHosts.contains(pEdgeHost)){
-                    preferredHostsCheckedCount++;
-                    nearest = pEdgeHost;
-                    //System.out.println("Prospective node processing for neighbor with coordinates: (" + p.getX() + ", " + p.getY() + ")");
-                    //System.out.println("Prospective node processing hostId: "+pEdgeHost.getId());
-                    //System.out.print(pEdgeHost.getId()+", ");
-                    if(!maxNumOfMobileForHost.containsKey(pEdgeHost)){
-                        Integer maxMobileForHost = (int)(pEdgeHost.getTotalMips()/(mobileTaskLengthRequirementMultiplier * mobile.getTaskLengthRequirement()));
-                        maxNumOfMobileForHost.put(pEdgeHost, maxMobileForHost);
-                    }
-                    if (pEdgeHost.isMIPSCapacitySufficient(mobile) &&
-                            (!Host_AssignedMobileCount.containsKey(pEdgeHost) ||
-                                    (Host_AssignedMobileCount.containsKey(pEdgeHost) &&
-                                            Host_AssignedMobileCount.get(pEdgeHost) < maxNumOfMobileForHost.get(pEdgeHost)))) {
-                        //Host_AssignedMobileCount.get(pEdgeHost) < maximumMobileAssignment))) {
-                        hostProcessingDelay = (mobile.getTaskLengthRequirement()) / pEdgeHost.getVmScheduler().getPeCapacity();
-                        hostProcessingDelayUsingAvailableMIPS =
-                                (mobile.getTaskLengthRequirement()) / (1.0*(pEdgeHost.getTotalMips()-pEdgeHost.getReserveMips()));
-
-                        acceptableLatency = mobile.getLatencyRequirement();
-                        hostNetworkDelay = ((ESBModel)SimManager.getInstance().getNetworkModel()).getDelay(mobile.getLocation(), pEdgeHost.getLocation());
-
-                        //Consider round trip latency - assuming user is co-located with device, in current test environment.
-                        hostNetworkDelay += hostNetworkDelay;
-                        if(hostProcessingDelayUsingAvailableMIPS > hostProcessingDelay){
-                            //System.out.println("fhfty4223");
-                            totalDelay = hostProcessingDelayUsingAvailableMIPS + hostNetworkDelay;
-                        }else {
-                            totalDelay = hostProcessingDelay + hostNetworkDelay;
-                        }
-                        if (totalDelay < latencySafetyFactor * acceptableLatency) {
-                            //System.out.println();
-                            //return true;
-                            //prospectiveNodes.add(pointToHostMapXY.get(hostPoint.convertLongLatPointToXYCoordinates()));
-                            prospectiveNodes.add(pEdgeHost);
-                            HostId_Latency.put(pEdgeHost.getId(),totalDelay);
-                            System.out.println("HostId: "+pEdgeHost.getId()+" Estimated latency: "+totalDelay);
-                        }
-                        //prospectiveNodes.add(pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates()));
-                        //nearest = pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates());
-                        //break;
-                    }
-                }
-            }
-            //System.out.println("");
-        }*/
-
         if (SimSettings.getInstance().traceEnable()) {
             SimLogger.printLine("prospectiveNodes.size(): "+
                     prospectiveNodes.size());
@@ -945,7 +866,11 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
         //preferredHostListsIndex = -1;
         boolean assignmentDone = false;
         if(preferredHostIndexAscending) {
-            preferredHostListsIndex = preferredHostMinIndex+1; // Exclude the cloud
+            if(includeCloudAsPreferredHost) {
+                preferredHostListsIndex = preferredHostMinIndex; // Include the cloud
+            }else {
+                preferredHostListsIndex = preferredHostMinIndex + 1; // Exclude the cloud
+            }
 //            while (preferredHostListsIndex < (preferredHostMaxIndex+1)
 //                    && prospectiveNodes.size() == 0 && goodNodes.size() == 0) {
             while (preferredHostListsIndex < (preferredHostMaxIndex+1)){
@@ -962,8 +887,16 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
             preferredHostListsIndex = preferredHostMaxIndex;
 //            while (preferredHostListsIndex > (preferredHostMinIndex-1)
 //                    && prospectiveNodes.size() == 0 && goodNodes.size() == 0) {
-            while (preferredHostListsIndex > (preferredHostMinIndex)) { // Exclude cloud
-                if (preferredHostListsIndex > (preferredHostMinIndex)
+            int preferredMinToIncludeExcludeCloud = 9999999;
+            if(includeCloudAsPreferredHost) {
+                preferredMinToIncludeExcludeCloud = preferredHostMinIndex - 1; // Include cloud
+            }else{
+                preferredMinToIncludeExcludeCloud = preferredHostMinIndex; // Exclude cloud
+            }
+            while (preferredHostListsIndex > (preferredMinToIncludeExcludeCloud)) {
+//                if (preferredHostListsIndex > (preferredHostMinIndex)
+//                        && preferredHostListsIndex < (preferredHostMaxIndex+1)) {
+                if (preferredHostListsIndex > (preferredMinToIncludeExcludeCloud)
                         && preferredHostListsIndex < (preferredHostMaxIndex+1)) {
                     if(preferredHostListsIndex == (preferredHostMaxIndex-1)){
                         System.out.println("preferredHostListsIndex: "+preferredHostListsIndex);
@@ -976,194 +909,32 @@ public class VoronoiSingleLayerOrchestrator extends EdgeOrchestrator {
                 preferredHostListsIndex--;
             }
         }
-        //If none of the fog nodes fail to host, try to host on cloud
-        if(!assignmentDone) {
-            preferredHostListsIndex = 0;
-            if(checkLatencyConditionForCloud) {
-                prospectiveNodes = getProspectiveNodes(preferredHostListsIndex, mobile);
-                goodNodes = getGoodNodes(prospectiveNodes, mobile);
-                assignmentDone = attemptHostAssignment(goodNodes, mobile);
-                if (assignmentDone) {
-                    assignedToCloudMobileDeviceCount++;
+        // If cloud is excluded
+        if (!includeCloudAsPreferredHost) {
+            //If none of the fog nodes fail to host, try to host on cloud
+            if (!assignmentDone) {
+                preferredHostListsIndex = 0;
+                if (checkLatencyConditionForCloud) {
+                    prospectiveNodes = getProspectiveNodes(preferredHostListsIndex, mobile);
+                    goodNodes = getGoodNodes(prospectiveNodes, mobile);
+                    assignmentDone = attemptHostAssignment(goodNodes, mobile);
+                    if (assignmentDone) {
+                        assignedToCloudMobileDeviceCount++;
+                    }
+                } else {
+                    prospectiveNodes = getProspectiveNodes(preferredHostListsIndex, mobile);
+                    goodNodes = prospectiveNodes;//getGoodNodes(prospectiveNodes, mobile);
+                    assignmentDone = attemptHostAssignment(goodNodes, mobile);
+                    if (assignmentDone) {
+                        assignedToCloudMobileDeviceCount++;
+                    }
                 }
-            }else{
-                prospectiveNodes = getProspectiveNodes(preferredHostListsIndex, mobile);
-                goodNodes = prospectiveNodes;//getGoodNodes(prospectiveNodes, mobile);
-                assignmentDone = attemptHostAssignment(goodNodes, mobile);
-                if (assignmentDone) {
-                    assignedToCloudMobileDeviceCount++;
-                }
-                /*int selHostId = 0;//preferredHosts(preferredHostListsIndex);
-                EdgeHost selHost = bdEdgeHost.get(selHostId);
-                LinkedList<NodeSim> path = ((ESBModel) SimManager.getInstance().getNetworkModel()).findPath(selHost, mobile);
-                mobile.setPath(path);
-                mobile.setHost(selHost);
-                //System.out.println("Before reservation: "+selHost.getTotalMips()+", "+selHost.getAvailableMips()+", "+selHost.getReserveMips());
-                //mobile.setAppType(SimSettings.APP_TYPES.AUGMENTED_REALITY); // added by sks0099 on 09112025 for testing
-                //mobile.makeReservation(); // added by sks0099 on 09112025 for testing
-                //mobile.makeReservation(); // added by sks0099 on 09112025 for testing
-                mobile.makeReservation();
-                //System.out.println("After reservation: "+selHost.getTotalMips()+", "+selHost.getAvailableMips()+", "+selHost.getReserveMips());
-                //System.exit(97979);
-                Integer currentAssignmentCount = 0;
-                if (Host_AssignedMobileCount.containsKey(selHost)) {
-                    currentAssignmentCount = Host_AssignedMobileCount.get(selHost);
-                }
-                Host_AssignedMobileCount.put(selHost, currentAssignmentCount + 1);
-                mobileHostHop.put(mobile, HostId_Hops.get(selHostId));
-                selHost.setHop(HostId_Hops.get(selHostId));
-                this.hops[mobile.getId()] = HostId_Hops.get(selHostId);
-                System.out.println("  Assigned host: " + selHost.getId() + " total assignment: " + (currentAssignmentCount + 1) + " Estimated latency: " + HostId_Latency.get(selHost.getId())
-                        + " Voronoi traversal hops (mobile to the host): " + HostId_Hops.get(selHostId));
-
-                searchHop.put(mobile, HostId_SearchHops.get(selHostId));
-                selHost.setSearchHop(HostId_SearchHops.get(selHostId));
-                this.searchHops[mobile.getId()] = HostId_SearchHops.get(selHostId);
-                if(debug) {
-                    System.out.println("  Assigned host: " + selHost.getId() + " total assignment: " + (currentAssignmentCount + 1) + " Estimated latency: " + HostId_Latency.get(selHost.getId())
-                            + " Search hops (mobile to the host): " + HostId_SearchHops.get(selHostId));
-                }
-
-                mobileHostAssignment.put(mobile, selHost);
-
-                double distanceBetweenMobileAndHost = DataInterpreter.measure(mobile.getLocation().getYPos(), mobile.getLocation().getXPos(),
-                        selHost.getLocation().getYPos(), selHost.getLocation().getXPos());
-                if (SimSettings.getInstance().traceEnable()) {
-                    SimLogger.printLine("Distance from mobile to the host is: " +
-                            distanceBetweenMobileAndHost + " m");
-                    SimLogger.printLine("Mobile location is: (" + mobile.getLocation().getXPos() + "," + mobile.getLocation().getYPos() + ")");
-                    SimLogger.printLine("Host location is: (" + selHost.getLocation().getXPos() + "," + selHost.getLocation().getYPos() + ")");
-                }*/
-
             }
         }
         if(!assignmentDone){
             System.out.println("Host assignment failed.");
             unassignedMobileDeviceCount++;
         }
-        /*if(prospectiveNodes.size()==0){
-            System.out.println("No prospective node could be found.");
-            //System.exit(880808);
-        }
-        if(goodNodes.size()==0){
-            System.out.println("No good node could be found.");
-            //System.exit(880808);
-        }*/
-
-//        while (prospectiveNodes.size() != 0) {
-//            BinaryHeap sort = new BinaryHeap(prospectiveNodes.size(), mobile.getLocation(), prospectiveNodes);
-//            LinkedList<EdgeHost> nodes = sort.sortNodes();
-//
-//            //BinaryHeap sort = new BinaryHeap(prospectiveNodes.size(), mobile, prospectiveNodes);
-//            //LinkedList<EdgeHost> nodes = sort.sortNodesByCostPerSec();
-//
-//            //BinaryHeap sort = new BinaryHeap(prospectiveNodes.size(), mobile, prospectiveNodes);
-//            //LinkedList<EdgeHost> nodes = sort.sortNodesByMIPS(); // Sorting is in descending order
-//
-//            EdgeHost prosHost = nodes.poll();
-//
-//            // Find the nearest node capable of hosting the application.
-//            /*while (!goodHost(prosHost, mobile)) {
-//                // if mobile flag is not due-to-latency --> set latencylimitflag to 0;
-//                badNodes.add(prosHost);
-//                prosHost = nodes.poll();
-//                if (prosHost == null) {
-//                    break;
-//                }
-//            }*/
-//
-//            while(prosHost != null){
-//                if(goodHost(prosHost, mobile)){
-//                    goodNodes.add(prosHost);
-//                }else{
-//                    badNodes.add(prosHost);
-//                }
-//                prosHost = nodes.poll();
-//            }
-//            /*if (prosHost != null) {
-//                // Good host found for current fog layer. Save it and initiate search for next higher layer.
-//                goodNodes.add(prosHost);
-//                break;
-//                //nearest = prosHost;
-//            }*/
-//            // if latencylimitflag is 1 --> all prospective nodes has sufficient mips, but failed due to latency;
-//            // give just one more chance to expand search, beyond which we assume the nodes are too far anyway ( heuristic) & may have higher latency
-//            // if latencylimitflag = 2; then print latency unacceptable for this layer; and break
-//            // else set latencylimitflag ++ i.e. set to 2 i.e. give a second chance to expand search; or set to 1 to restart the racking prcess.
-//            // and continue executing the fllowing code..
-//
-//            // Search unsuccessful, hence expand search to neighbors using parent subtree.
-//            // Get list of other prospective nodes belonging to this layer in the parent subtree
-//            //prospectiveNodes = SimManager.getInstance().getEdgeServerManager().getCousins(pud, levelIter, mobile.getId());
-//
-//
-//            if(searchBadNodes){
-//                // If the search with the existing prospective nodes fails, include neighboring nodes
-//                if (prosHost == null && goodNodes.size() == 0) {
-//                    List<Point> myVoronoiNeighborsOfNearest = myVoronoiNeighborSiteMap.get(new Point(badNodes.get(0).getLocation().getXPos(), nearest.getLocation().getYPos()));
-//                    NeighborsOfNodesAddedToProspectiveNodes.add(badNodes.get(0));
-//                    if(myVoronoiNeighborsOfNearest != null){
-//                        for (Point p : myVoronoiNeighborsOfNearest) {
-//                            //System.out.println("Point: (" + p.getX() + ", " + p.getY() + ")");
-//                            EdgeHost pEdgeHost = pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates());
-//                            if(!badNodes.contains(pEdgeHost) && !NeighborsOfNodesAddedToProspectiveNodes.contains(pEdgeHost) &&
-//                                    !prospectiveNodes.contains(pEdgeHost) &&
-//                                    preferredHosts.contains(pEdgeHost) &&
-//                                    (!Host_AssignedMobileCount.containsKey(pEdgeHost) ||
-//                                            (Host_AssignedMobileCount.containsKey(pEdgeHost) &&
-//                                                    Host_AssignedMobileCount.get(pEdgeHost) < maxNumOfMobileForHost.get(pEdgeHost)))){
-//                                //Host_AssignedMobileCount.get(pEdgeHost) < maximumMobileAssignment))){
-//                                if (pEdgeHost.isMIPSCapacitySufficient(mobile)) {
-//                                    hostProcessingDelay = (mobile.getTaskLengthRequirement()) / pEdgeHost.getVmScheduler().getPeCapacity();
-//                                    hostProcessingDelayUsingAvailableMIPS = (mobile.getTaskLengthRequirement()) / pEdgeHost.getAvailableMips();
-//                                    if(hostProcessingDelayUsingAvailableMIPS > hostProcessingDelay){
-//                                        System.out.println("dhdry35534636");
-//                                    }
-//                                    acceptableLatency = mobile.getLatencyRequirement();
-//                                    hostNetworkDelay = ((ESBModel) SimManager.getInstance().getNetworkModel()).getDelay(mobile.getLocation(), pEdgeHost.getLocation());
-//
-//                                    //Consider round trip latency - assuming user is co-located with device, in current test environment.
-//                                    hostNetworkDelay += hostNetworkDelay;
-//
-//                                    totalDelay = hostProcessingDelay + hostNetworkDelay;
-//                                    if (totalDelay < latencySafetyFactor * acceptableLatency) {
-//                                        //System.out.println();
-//                                        //return true;
-//                                        //prospectiveNodes.add(pointToHostMapXY.get(hostPoint.convertLongLatPointToXYCoordinates()));
-//                                        prospectiveNodes.add(pEdgeHost);
-//
-//                                    }
-//                                    //prospectiveNodes.add(pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates()));
-//                                    //nearest = pointToHostMapXY.get(p.convertLongLatPointToXYCoordinates());
-//                                    //break;
-//                                }
-//                            }
-//                        }
-//                        if(prospectiveNodes.contains(badNodes.get(0))){
-//                            prospectiveNodes.remove(badNodes.get(0));
-//                        }
-//                        badNodes.remove(badNodes.get(0));
-//                    }else{
-//                        break;
-//                    }
-//
-//                }
-//            }else{
-//                break;
-//            }
-//
-//
-//            // If search unsuccessful in entire system
-//            // i.e. no node in this fog layer has sufficient resources to host the application.
-//            if ((prospectiveNodes.size() == 0 && goodNodes.size()==0) || goodNodes.size() > 0) {
-//                break;
-//            }
-//
-//            /*
-//            // Update root of subtree which is being searched
-//            pud = SimManager.getInstance().getEdgeServerManager().findPuddleById(pud.getLevel()+1, pud.getParentPuddleId());
-//            */
-//        }
 
 
         // Part-B: Find cost-optimal node from the set of good nodes identified one per fog layer

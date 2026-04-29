@@ -21,11 +21,18 @@ function [] = plotAllPlots()
     if(isNumberOfMobileDevicesBetween100And600 == 0)
         %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results"
         %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_500_500_6000";
-        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_1000_6000\AfterHAFAModification\rsHAFACombined";
+        %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_1000_6000\AfterHAFAModification\rsHAFACombined";
+        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_1000_6000\OriginalHAFA_Voronoi_AllAppsEqual";
+        if(isRandomSeedSupplied == 1)
+            config.FolderPath = strcat(config.FolderPath,'/rs',string(randomSeed));
+            %config.FolderPath = strcat(config.FolderPath,'/allrs');
+            %config.FolderPath = strcat(config.FolderPath,'/allcombined');
+        end
     else
         %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600"
         %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600_different_rand_seeds";
-        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600_different_rand_seeds_HAFA_modified";
+        %config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600_different_rand_seeds_HAFA_modified";
+        config.FolderPath =  "D:\AUProjects\PFogSim-SweetMango\sim_results_100_600_HealthApp";
         if(isRandomSeedSupplied == 1)
             %config.FolderPath = strcat(config.FolderPath,'/rs',string(randomSeed));
             %config.FolderPath = strcat(config.FolderPath,'/allrs');

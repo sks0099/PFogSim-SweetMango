@@ -719,7 +719,8 @@ public class SimSettings {
             }
 
         } catch (Exception e) {
-            SimLogger.printLine("Edge Devices XML cannot be parsed! Terminating simulation...");
+            //SimLogger.printLine("Edge Devices XML cannot be parsed! Terminating simulation...");
+            SimLogger.printLine("Application XML at location: "+filePath+" cannot be parsed! Terminating simulation...");
             e.printStackTrace();
             System.exit(0);
         }
@@ -789,7 +790,7 @@ public class SimSettings {
             }
 
         } catch (Exception e) {
-            SimLogger.printLine("Edge Devices XML cannot be parsed! Terminating simulation...");
+            SimLogger.printLine("Edge Devices XML at location: "+filePath+" cannot be parsed! Terminating simulation...");
             e.printStackTrace();
             System.exit(0);
         }

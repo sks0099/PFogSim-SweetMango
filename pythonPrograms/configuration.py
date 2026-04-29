@@ -35,12 +35,12 @@ class Configuration:
     # LineStyleMono {mustBeText} = {'-k*', '-ko', '-ks', '-kv', '-kp', '-kd', '-kx', '-kh'}
     LineStyleMono = {'-k*', '-ko', '-ks', '-kv', '-kp', '-kd', '-kx', '-kh', '-k^', '-khexagram'}  # It must be a text.
     # LineStyleColor {mustBeText} = {':k*', ':ko', ':ks', ':kv', ':kp', ':kd', ':kx', ':kh'}
-    LineStyleColor = {':k*', ':ko', ':ks', ':kv', ':kp', '-kd', ':kx', ':kh', ':k^', '-khexagram'}  # It must be a text.
+    LineStyleColor = {':k*', ':ko', ':ks', ':kv', ':kp', '-kd', ':kx', ':kh', ':k^', '-khexagram', '-.k'}  # It must be a text.
     markerStyle = ['o', 'v', '^', '<','>','s','p','*', 'h', '+','x', '.']
     # lineStyle = ['-',':',':',':',':',':','-','--','--','--','--','--']
-    lineStyle = ['-', '-']
+    lineStyle = ['-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']
     # lineWidth = [1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5, 0.5]
-    lineWidth = [1.0, 1.0]
+    lineWidth = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
     # LineStyleOrder = {'-.', '--', '--', '--', '--', '--', '--', '--', '--', '-'}
     StackedBoxColors = ['#00ffff80', '#ff00ff80', '#7fff0080', '#ff000080', '#ff796c80', '#0000ff80', '#c0c0c080', '#aaff3280', '#c79fef80']
 
@@ -136,7 +136,9 @@ class Configuration:
         newConfigFolderPath = newConfig.FolderPath
         #allFiles = dir('**/*SIMRESULT_*_GENERIC*')
         # allFiles = Configuration.find_filenames_with_pattern(newConfigFolderPath, r'\w*\/\w*SIMRESULT_\w*_GENERIC\w*')
-        allFiles = Configuration.find_filenames_with_pattern(newConfigFolderPath, r'SIMRESULT_\w*_GENERIC\w*')
+        # fileMatchingPattern = r'SIMRESULT_\w*_GENERIC\w*'
+        fileMatchingPattern = r'SIMRESULT_(?!\w*LOC|EDGE_BY_DISTANCE)\w*_GENERIC\w*'
+        allFiles = Configuration.find_filenames_with_pattern(newConfigFolderPath, fileMatchingPattern)
         #allFiles = [x for x in os.listdir(newConfigFolderPath) if re.match('\w*\/\w*SIMRESULT_\w*_GENERIC\w*')]
         # print(allFiles)
         # pattern_scenario = r'SIMRESULTS_'
@@ -164,7 +166,7 @@ class Configuration:
         print(f'scenario_unique_list: {scenario_unique_list}')
         print(f'device_count_unique_list: {device_count_unique_list}')
         print(f'appType_unique_list: {appType_unique_list}')
-        # exit(0)
+        #exit(0)
         # cd(scriptPath)
         # Code?? for previous line
         # Now, use the files in FolderPath to set remaining properties.}
@@ -187,7 +189,14 @@ class Configuration:
 
         if (newConfig.ScenarioLabelsList.lower() == oldConfig.ScenarioLabelsList.lower()):
             newConfig.ScenarioLabelsList = [s.replace('_',' ') for s in allScenarios] #strrep(newConfig.SimulationScenarioList, '_', ' ')
-
+        scenarioLabelListIndex = 0
+        for ele in newConfig.ScenarioLabelsList:
+            if ele == 'HAFA ORCHESTRATOR':
+                newConfig.ScenarioLabelsList[scenarioLabelListIndex] = 'HAFA'
+            elif ele == 'SINGLE LAYER VORONOI':
+                newConfig.ScenarioLabelsList[scenarioLabelListIndex] = 'Voronoi'
+            # print(ele, newConfig.ScenarioLabelsList[scenarioLabelListIndex])
+            scenarioLabelListIndex += 1
         #devices = string({combos.devices})
         # devices = str({combos.devices})
         #allDeviceCounts = unique(devices(:))
