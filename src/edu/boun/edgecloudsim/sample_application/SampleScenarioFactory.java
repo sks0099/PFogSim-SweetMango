@@ -29,6 +29,7 @@ import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
 import edu.auburn.pFogSim.orchestrator.SelectedLevelsOrchestrator;
 import edu.auburn.pFogSim.orchestrator.SelectedNodesOrchestrator;
 import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
+import edu.auburn.pFogSim.orchestrator.VoronoiImprovedSingleLayerOrchestrator;
 import edu.boun.edgecloudsim.core.ScenarioFactory;
 import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.core.SimSettings.APP_TYPES;
@@ -116,8 +117,12 @@ public class SampleScenarioFactory implements ScenarioFactory {
 				return new SelectedLevelsOrchestrator(orchestratorPolicy, simScenario);
 
 			case "SINGLE_LAYER_VORONOI":
-				return new VoronoiSingleLayerOrchestrator(orchestratorPolicy, simScenario);
-			default:
+                return new VoronoiSingleLayerOrchestrator(orchestratorPolicy, simScenario);
+
+            case "IMPROVED_SINGLE_LAYER_VORONOI":
+                return new VoronoiImprovedSingleLayerOrchestrator(orchestratorPolicy, simScenario);
+
+            default:
 				return null;
 		}
 	}

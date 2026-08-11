@@ -65,9 +65,29 @@ public class MobileDeviceManager extends DatacenterBroker {
 	private int taskIdCounter=0;
 	private ArrayList<MobileDevice> mobileDevices;
 
+	// Diagnostic timing instrumentation - cumulative nanoseconds spent per code path across the whole run.
+	public static long totalCsvWriteNanos = 0;
+	public static long totalSubmitTaskNanos = 0;
+	public static long totalSubmitTaskToEdgeDeviceNanos = 0;
+	public static long totalProcessCloudletReturnNanos = 0;
+	public static long totalResponseReceivedNanos = 0;
+
+	public static void printTimingBreakdown() {
+		System.out.println("---- Diagnostic timing breakdown ----");
+		System.out.println("submitTask total (incl. CSV write, excl. submitTaskToEdgeDevice call): " + (totalSubmitTaskNanos / 1_000_000) + " ms");
+		System.out.println("  of which CSV write block: " + (totalCsvWriteNanos / 1_000_000) + " ms");
+		System.out.println("submitTaskToEdgeDevice total: " + (totalSubmitTaskToEdgeDeviceNanos / 1_000_000) + " ms");
+		System.out.println("processCloudletReturn total: " + (totalProcessCloudletReturnNanos / 1_000_000) + " ms");
+		System.out.println("RESPONSE_RECEIVED_BY_MOBILE_DEVICE total: " + (totalResponseReceivedNanos / 1_000_000) + " ms");
+		System.out.println("--------------------------------------");
+	}
+
     ConstantsClass myConstantsClass = new ConstantsClass();
     boolean generate_task_creation_csv = myConstantsClass.isGenerateTaskCreationCSV();
     String[] header = {"taskID", "mobileDevId","taskSubmitTime", "taskType", "taskLocLong", "taskLocLat", "taskLocAlt","maxDelay","taskDestLocLong","taskDestLocLat","taskDestLocAlt","taskSourceDestDistKm"};
+    // Opened once on first use and kept open for the whole run instead of open/write/close per task -
+    // that per-task file-handle churn was ~40% of total runtime at 6000-device scale.
+    private CSVWriter taskCsvWriter = null;
     //String[][] csvData = {};
     //String[] csvDataRow= {};
 //    boolean debug=true;
@@ -101,6 +121,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 	 * @post $none
 	 */
 	protected void processCloudletReturn(SimEvent ev) {
+		long __t0 = System.nanoTime();
 		NetworkModel networkModel = SimManager.getInstance().getNetworkModel();
 		Task task = (Task) ev.getData();
 
@@ -158,6 +179,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 			else {
 				SimLogger.getInstance().failedDueToBandwidth(task.getCloudletId(), CloudSim.clock());
 			}
+		totalProcessCloudletReturnNanos += System.nanoTime() - __t0;
 	}
 	
 	
@@ -259,8 +281,9 @@ public class MobileDeviceManager extends DatacenterBroker {
 			}
 			case RESPONSE_RECEIVED_BY_MOBILE_DEVICE: // Shaik updated
 			{
+				long __t0 = System.nanoTime();
 				Task task = (Task) ev.getData();
-				
+
 				if(task.getAssociatedHostId() == SimSettings.CLOUD_HOST_ID)
 					networkModel.downloadFinished(task.getSubmittedLocation(), SimSettings.CLOUD_DATACENTER_ID);
 				else
@@ -348,7 +371,8 @@ public class MobileDeviceManager extends DatacenterBroker {
 						//break;
 					}
 				}
-	
+
+				totalResponseReceivedNanos += System.nanoTime() - __t0;
 				break;
 			}
 			default:
@@ -365,6 +389,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 	 * @param delay
 	 */
 	public void submitTaskToEdgeDevice(Task task, double delay) {
+		long __t0 = System.nanoTime();
 		//select a VM
 		EdgeVM selectedVM = SimManager.getInstance().getEdgeOrchestrator().getVmToOffload(task);
 		
@@ -378,7 +403,10 @@ public class MobileDeviceManager extends DatacenterBroker {
 			
 			//bind task to related VM
 			getCloudletList().add(task);
-			bindCloudletToVm(task.getCloudletId(),selectedVM.getId());
+			// Bind directly instead of calling bindCloudletToVm(int, int), which looks the cloudlet
+			// up via CloudletList.getById() - an O(N) scan of the whole (ever-growing) cloudlet list.
+			// We already have the reference we just added, so just set it directly - O(1).
+			task.setVmId(selectedVM.getId());
 			
 			//SimLogger.printLine(CloudSim.clock() + ": Cloudlet#" + task.getCloudletId() + " is submitted to VM#" + task.getVmId());
 			schedule(getVmsToDatacentersMap().get(task.getVmId()), delay, CloudSimTags.CLOUDLET_SUBMIT, task);
@@ -400,9 +428,10 @@ public class MobileDeviceManager extends DatacenterBroker {
 			if (SimSettings.getInstance().traceEnable()) {
 				SimLogger.printLine("submitTaskToEdgeDevice: Task: "+task.getCloudletId()+"  Assigned Host: "+task.getAssociatedHostId()+" - task rejected due to host unavailability");
 			}
-			
+
 		}
 
+		totalSubmitTaskToEdgeDeviceNanos += System.nanoTime() - __t0;
 	}
 	
 	
@@ -411,6 +440,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 	 * @param edgeTask
 	 */
 	public void submitTask(EdgeTask edgeTask) {
+		long __t0 = System.nanoTime();
 		NetworkModel networkModel = SimManager.getInstance().getNetworkModel();
 		
 		//create a task
@@ -423,12 +453,14 @@ public class MobileDeviceManager extends DatacenterBroker {
 		task.setSubmittedLocation(currentLocation);
 
         if(generate_task_creation_csv){
-//            System.out.println(SimLogger.getInstance().getConsoleTxtFile().getName());
-            //System.out.println(SimLogger.getInstance().getCsvFile().getName());
-            File csvOutputFile = SimLogger.getInstance().getCsvFile();
-            // create CSVWriter object filewriter object as parameter
-            try (CSVWriter writer = new CSVWriter(new FileWriter(csvOutputFile, true))) {
-                if(taskIdCounter==1) writer.writeNext(header); // Write header
+            long __csvT0 = System.nanoTime();
+            // Writer is opened once (below) and kept open for the whole run - see taskCsvWriter field.
+            try {
+                if (taskCsvWriter == null) {
+                    File csvOutputFile = SimLogger.getInstance().getCsvFile();
+                    taskCsvWriter = new CSVWriter(new FileWriter(csvOutputFile, true));
+                    taskCsvWriter.writeNext(header); // Write header once, on first task
+                }
                 double distBetweenMobileAndHostKm = DataInterpreter.measure(currentLocation.getYPos(), currentLocation.getXPos(),
                         SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getYPos(),
                         SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getXPos())/1000.0;
@@ -437,11 +469,7 @@ public class MobileDeviceManager extends DatacenterBroker {
                         ""+SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getxPos(),
                         ""+SimManager.getInstance().getLocalServerManager().findHostById(task.getAssociatedHostId()).getLocation().getyPos(),
                         ""+task.getSubmittedLocation().getAltitude(),""+distBetweenMobileAndHostKm};
-                //for (String[] row : data) {
-                writer.writeNext(csvDataRow); // Write data rows
-                //}
-                //writer.close();
-                //System.out.println("CSV file written successfully with OpenCSV!");
+                taskCsvWriter.writeNext(csvDataRow); // Write data row (writer stays open)
             } catch (IOException e) {
                 System.err.println("Error writing CSV file: " + e.getMessage());
             }
@@ -461,6 +489,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 //            System.out.println("Task Id:"+taskIdCounter+", Mobile device Id: "+task.getMobileDeviceId()+", Task submission time: "+
 //                    CloudSim.clock()+", Task type: "+
 //                    task.getTaskType()+", Task submission location: "+currentLocation);
+            totalCsvWriteNanos += System.nanoTime() - __csvT0;
         }
 		//add related task to log list
 		SimLogger.getInstance().addLog(CloudSim.clock(),
@@ -479,6 +508,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 				SimLogger.printLine("submitTask: Task: "+task.getCloudletId()+"  Assigned Host: "+task.getAssociatedHostId()+" - task rejected due to host unavailability");
 			}
 
+			totalSubmitTaskNanos += System.nanoTime() - __t0;
 			return;
 		}
 		//Qian add host to utilization map
@@ -554,13 +584,14 @@ public class MobileDeviceManager extends DatacenterBroker {
 			SimLogger.printLine("Unknown nextHopId! Terminating simulation...");
 			System.exit(0);
 		}*/
+		totalSubmitTaskNanos += System.nanoTime() - __t0;
 	}
-	
-	
+
+
 	/**
-	 * 
+	 *
 	 * @param edgeTask
-	 * 
+	 *
 	 * @return
 	 */
 	public Task createTask(EdgeTask edgeTask){
@@ -603,8 +634,27 @@ public class MobileDeviceManager extends DatacenterBroker {
 	public void migrateTask(Task task) {
 		EdgeVM vm = SimManager.getInstance().getEdgeOrchestrator().getVmToOffload(task);
 		task.setAssociatedHostId(vm.getHost().getId());
-		bindCloudletToVm(task.getCloudletId(),vm.getId());
+		// Bind directly rather than via bindCloudletToVm(int, int) - see submitTaskToEdgeDevice for why.
+		task.setVmId(vm.getId());
 		schedule(getVmsToDatacentersMap().get(task.getVmId()), 0, CloudSimTags.CLOUDLET_SUBMIT, task);
+	}
+
+
+	/**
+	 * Flush and close the task-creation CSV writer (opened once in submitTask and kept open for
+	 * the whole run) so buffered rows are not lost.
+	 */
+	@Override
+	public void shutdownEntity() {
+		if (taskCsvWriter != null) {
+			try {
+				taskCsvWriter.close();
+			} catch (IOException e) {
+				System.err.println("Error closing CSV file: " + e.getMessage());
+			}
+			taskCsvWriter = null;
+		}
+		super.shutdownEntity();
 	}
 	
 	

@@ -13,8 +13,11 @@
 package edu.boun.edgecloudsim.edge_server;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
 import edu.auburn.pFogSim.util.MobileDevice;
@@ -76,6 +79,8 @@ public class EdgeServerManager {
 
 	public BidiMap<Integer, Point> hostId_Location = new DualHashBidiMap<>();
 	public BidiMap<Integer, EdgeHost> hostId_EdgeHost = new DualHashBidiMap<>();
+	// O(1) lookup by exact (x, y, altitude), populated alongside hostId_EdgeHost below.
+	private Map<List<Double>, EdgeHost> locationToHost = new HashMap<>();
 
     private boolean isNetworkTopologySet = false;
 
@@ -429,9 +434,11 @@ public class EdgeServerManager {
 			hostIdCounter++;
 			//Added by sks0099 on 20250718 - begin
 			//Create bidirectional maps for voronoi simulation
-			hostId_Location.put(hostIdCounter, new Point(host.getLocation().getXPos(), host.getLocation().getYPos()));
-			hostId_EdgeHost.put(hostIdCounter, host);
+			hostId_Location.put(host.getId(), new Point(host.getLocation().getXPos(), host.getLocation().getYPos()));
+			hostId_EdgeHost.put(host.getId(), host);
 			//Added by sks0099 on 20250718 - end
+			locationToHost.put(Arrays.asList(host.getLocation().getXPos(), host.getLocation().getYPos(),
+					host.getLocation().getAltitude()), host);
 		}
 		
 
@@ -760,13 +767,9 @@ public class EdgeServerManager {
 	 * @return
 	 */
 	public EdgeHost findHostByLoc(Double x, Double y, Double z) {
-		Location match = new Location(x,y,z);
-
-		for (Datacenter node : SimManager.getInstance().getLocalServerManager().getDatacenterList()) {
-			
-			if (((EdgeHost) node.getHostList().get(0)).getLocation().equals(match)) {
-				return ((EdgeHost) node.getHostList().get(0));
-			}
+		EdgeHost host = locationToHost.get(Arrays.asList(x, y, z));
+		if (host != null) {
+			return host;
 		}
 		return findMovingHost(x, y, z);
 	}
@@ -800,12 +803,7 @@ public class EdgeServerManager {
 	 * @return EdgeHost
 	 */
 	public EdgeHost findHostById(int id) {
-		for (Datacenter node : SimManager.getInstance().getLocalServerManager().getDatacenterList()) {
-			if (node.getHostList().get(0).getId() == id) {
-				return ((EdgeHost) node.getHostList().get(0));
-			}
-		}
-		return null;
+		return hostId_EdgeHost.get(id);
 	}
 	
 	

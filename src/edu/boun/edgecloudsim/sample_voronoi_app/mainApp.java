@@ -111,7 +111,7 @@ public class mainApp {
 			{
 				for(int i=0; i<1; i++)
 				{
-					if(iterationNumber > 9 || iterationNumber < 0) {
+					if(iterationNumber > 10 || iterationNumber < 0) {
 						SimLogger.printLine("Iteration Number " + iterationNumber + " hasn't been implemented yet.");
 						System.exit(0);
 					}

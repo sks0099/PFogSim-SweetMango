@@ -242,6 +242,130 @@ public class DataInterpreter {
 				System.out.println("Creation of SINGLE_LAYER_VORONOI " + ConstantsClass.nodeXmlFile + " and " + ConstantsClass.linksXmlFile + " ends.\n");
 
 				break;
+            case "IMPROVED_SINGLE_LAYER_VORONOI":
+                // code to execute if expression matches value1
+                System.out.println("Creation of IMPROVED_SINGLE_LAYER_VORONOI " + ConstantsClass.nodeXmlFile + " and " + ConstantsClass.linksXmlFile + " begins ...");
+                //rawNode = null;
+                //String[] nodeLoc = new String[4];
+                //Double[] temp = new Double[4];
+                sitesLongLat = new ArrayList<Point>();
+                sitesXY = new ArrayList<Point>();
+
+                //int counter = 0;
+                //int prevCounter = 0;
+                nodeCount = 0;
+                nodeCountSum = 0;
+                for (int i = 0; i < MAX_LEVELS; i++) {
+                    try {
+                        dataFR = new FileReader(files[i]);
+                        dataBR = new BufferedReader(dataFR);
+                    } catch (FileNotFoundException e) {
+                    }
+                    nodeCount = 0;
+                    dataBR.readLine(); //Gets rid of title data
+                    while (dataBR.ready()) {
+                        rawNode = dataBR.readLine();
+                        nodeLoc = rawNode.split(",");
+                        temp[0] = (double) counter; //ID
+                        temp[2] = Double.parseDouble(nodeLoc[1]); //Y Coord
+                        temp[1] = Double.parseDouble(nodeLoc[2]); //X Coord
+                        temp[3] = Double.parseDouble(nodeLoc[3]); //Altitude
+                        if (MAX_LONG == -100000 || temp[1] > MAX_LONG) MAX_LONG = temp[1];
+                        if (MIN_LONG == -100000 || temp[1] < MIN_LONG) MIN_LONG = temp[1];
+                        if (MAX_LAT == -100000 || temp[2] > MAX_LAT) MAX_LAT = temp[2];
+                        if (MIN_LAT == -100000 || temp[2] < MIN_LAT) MIN_LAT = temp[2];
+
+                        Point tempPoint = new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1]));
+                        if(!sitesLongLat.contains(tempPoint)){
+                            //Add to output file
+                            node.println(String.format("\n<datacenter arch=\"%s\" os=\"%s\" vmm=\"%s\">", nodeSpecs[MAX_LEVELS - i - 1][0], nodeSpecs[MAX_LEVELS - i - 1][1], nodeSpecs[MAX_LEVELS - i - 1][2]));
+                            node.println(String.format("\t<costPerBw>%s</costPerBw>\n\t<costPerSec>%s</costPerSec>\n\t<costPerMem>%s</costPerMem>\n\t<costPerStorage>%s</costPerStorage>", nodeSpecs[MAX_LEVELS - i - 1][3], nodeSpecs[MAX_LEVELS - i - 1][4], nodeSpecs[MAX_LEVELS - i - 1][5], nodeSpecs[MAX_LEVELS - i - 1][6]));
+                            //Qian change level start from 1
+                            node.println(String.format("\t<location>\n\t\t<x_pos>%s</x_pos>\n\t\t<y_pos>%s</y_pos>\n\t\t<altitude>%s</altitude>\n\t\t<level>%s</level>\n\t\t<wlan_id>%s</wlan_id>\n\t\t<wap>%s</wap>\n\t\t<moving>%s</moving>\n\t\t<bandwidth>%s</bandwidth>\n\t\t<dx>%s</dx>\n\t\t<dy>%s</dy>\n\t</location>", nodeLoc[2], nodeLoc[1], nodeLoc[3], MAX_LEVELS - i, counter, nodeSpecs[MAX_LEVELS - i - 1][7], nodeSpecs[MAX_LEVELS - i - 1][8], nodeSpecs[MAX_LEVELS - i - 1][13], nodeLoc[4], nodeLoc[5]));
+
+                            sitesLongLat.add(tempPoint);
+                            sitesLongLatBidiMap.put(sitesLongLat.size() - 1, new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1])));
+                            sitesLongLat3DBidiMap.put(sitesLongLat.size() - 1, new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1]), Double.parseDouble(nodeLoc[3])));
+                            sitesXYBidiMap.put(sitesLongLat.size() - 1, new Point(Double.parseDouble(nodeLoc[2]), Double.parseDouble(nodeLoc[1])).convertLongLatPointToXYCoordinates());
+                            node.println(String.format("\t<host>\n\t\t<core>%s</core>\n\t\t<mips>%s</mips>\n\t\t<ram>%s</ram>\n\t\t<storage>%s</storage>", nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
+                            node.println(String.format("\t\t<VM vmm=\"%s\">\n\t\t\t<core>%s</core>\n\t\t\t<mips>%s</mips>\n\t\t\t<ram>%s</ram>\n\t\t\t<storage>%s</storage>\n\t\t</VM>\n\t</host>\n</datacenter>", nodeSpecs[MAX_LEVELS - i - 1][2], nodeSpecs[MAX_LEVELS - i - 1][9], nodeSpecs[MAX_LEVELS - i - 1][10], nodeSpecs[MAX_LEVELS - i - 1][11], nodeSpecs[MAX_LEVELS - i - 1][12]));
+                            nodeCount++;
+                        }
+                    }
+                    System.out.println("i = " + i + " nodeCount = " + nodeCount + " sites size = " + sitesLongLat.size());
+				/*for(Point site:sites) {
+					System.out.println(site);
+				}*/
+                    nodeCountSum += nodeCount;
+				/*prevCounter = counter;
+
+
+
+
+				// Prepare to process info for next layer fog nodes
+				tempList.clear();*/
+
+
+                }// end - for MAX_LEVELS
+                System.out.println("Total number of nodes = " + nodeCountSum);
+
+                //After finishing creating of nodes xml file, get Single Layer Voronoi created
+                //Convert sites with longitude and latitude to XY coordinates
+                for (Point siteLongLat : sitesLongLat) {
+                    sitesXY.add(siteLongLat.convertLongLatPointToXYCoordinates());
+                }
+                //sitesXY = sitesLongLat;
+                myVoronoi = new Voronoi(sitesXY);
+                //myVoronoi.printPartitionNeighborInfo();
+                myVoronoiNeighborSiteMap = myVoronoi.getVoronoiNeighborSiteMap();
+                System.out.println("myVoronoiNeighborSiteMap size = " + myVoronoiNeighborSiteMap.size());
+                myVoronoiNeighborSiteMapLongLat = convertFromXYToLongLat(myVoronoiNeighborSiteMap);
+			/*for (Map.Entry<Point, List<Point>> entry : myVoronoiNeighborSiteMapLongLat.entrySet()) {
+				Point key = entry.getKey();
+				List<Point> value = entry.getValue();
+				//System.out.println("KeyId-Key(KeyLongLat): " + keyId+"-"+key + keyLongLat+", Value: " + value);
+				System.out.println("Key: " + key + ", Value: " + value);
+			}*/
+
+                //After creation of Single Layer Voronoi, create links xml file on the basis of fog sites of neighboring partitions
+                pairCompleted = new ArrayList<>();
+                for (Map.Entry<Point, List<Point>> entry : myVoronoiNeighborSiteMapLongLat.entrySet()) {
+                    Point key = entry.getKey();
+                    Integer leftId = sitesLongLatBidiMap.getKey(key);
+                    List<Point> value = entry.getValue();
+                    for(Point val: value) {
+                        //System.out.println("KeyId-Key(KeyLongLat): " + keyId+"-"+key + keyLongLat+", Value: " + value);
+                        //System.out.println("Key: " + key + ", Value: " + value);
+                        Integer rightId = sitesLongLatBidiMap.getKey(val);
+                        if(!pairCompleted.contains(new Pair<>(leftId, rightId))) {
+                            //double dis = measure(temp[2], temp[1], temp[3], nodeList.get(index)[2], nodeList.get(index)[1], nodeList.get(index)[3]) / 1000;
+                            double dis = measure(sitesLongLat3DBidiMap.get(leftId).getX(), sitesLongLat3DBidiMap.get(leftId).getY(),
+                                    sitesLongLat3DBidiMap.get(leftId).getZ(), sitesLongLat3DBidiMap.get(rightId).getX(),
+                                    sitesLongLat3DBidiMap.get(rightId).getY(), sitesLongLat3DBidiMap.get(rightId).getZ()) / 1000;
+                            double latency = dis * 0.01;
+                            links.println("\t<link>\n" +
+                                    "		<name>L" + leftId + "_" + rightId + "</name>\n" +
+                                    "		<left>\n" +
+                                    "			<x_pos>" + sitesLongLat3DBidiMap.get(leftId).getX() + "</x_pos>\n" +
+                                    "			<y_pos>" + sitesLongLat3DBidiMap.get(leftId).getY() + "</y_pos>\n" +
+                                    "			<altitude>" + sitesLongLat3DBidiMap.get(leftId).getZ() + "</altitude>\n" +
+                                    "		</left>\n" +
+                                    "		<right>\n" +
+                                    "			<x_pos>" + sitesLongLat3DBidiMap.get(rightId).getX() + "</x_pos>\n" +
+                                    "			<y_pos>" + sitesLongLat3DBidiMap.get(rightId).getY() + "</y_pos>\n" +
+                                    "			<altitude>" + sitesLongLat3DBidiMap.get(rightId).getZ() + "</altitude>\n" +
+                                    "		</right>\n" +
+                                    "		<left_latency>" + latency + "</left_latency>\n" +
+                                    "		<right_latency>" + latency + "</right_latency>\n" +
+                                    "	</link>");
+                            pairCompleted.add(new Pair<>(leftId, rightId));
+                            pairCompleted.add(new Pair<>(rightId, leftId));
+                        }
+                    }
+                }
+                System.out.println("Creation of SINGLE_LAYER_VORONOI " + ConstantsClass.nodeXmlFile + " and " + ConstantsClass.linksXmlFile + " ends.\n");
+
+                break;
 			default:
 				// code to execute if no case matches (optional)
 				//String rawNode = null;

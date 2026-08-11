@@ -253,25 +253,37 @@ public class EdgeHost extends Host {
 	 *	@param mb
 	 *	@return boolean
 	 */
+	// percentage_capacity never changes during a run; isMIPSCapacitySufficient() used to re-open and
+	// re-parse default_config.properties on every single call (measured at 230K+ calls, ~26s total,
+	// in a single 1000-device Voronoi run) just to read this one property. Cached here instead, loaded
+	// once on first use.
+	private static String[] percentageCapacitiesCache = null;
+	private static String[] getPercentageCapacities() {
+		if (percentageCapacitiesCache == null) {
+			String propertiesFile = "scripts/sample_application/config/default_config.properties";
+			try {
+				InputStream input = new FileInputStream(propertiesFile);
+				Properties prop = new Properties();
+				prop.load(input);
+				input.close();
+				percentageCapacitiesCache = prop.getProperty("percentage_capacity").split(",");
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+		return percentageCapacitiesCache;
+	}
+
 	public boolean isMIPSCapacitySufficient(MobileDevice mb) {
 		double reqMips = mb.getTaskLengthRequirement();
 		double hostMipsCapacity = this.getPeList().get(0).getMips() * 1 / ONE_HUNDRED_PERCENT;
 		//Get capacities from config file
-		String propertiesFile = "scripts/sample_application/config/default_config.properties";
 		double capacity = 1;
-		try {
-			InputStream input = new FileInputStream(propertiesFile);
-			// load a properties file
-			Properties prop = new Properties();
-			prop.load(input);
-			String[] percentage_capacities = prop.getProperty("percentage_capacity").split(",");
-			if(percentage_capacities.length > 0) {
-				capacity = Double.parseDouble(percentage_capacities[level - 1]);
-				// Apply capacity
-				hostMipsCapacity *= capacity;
-			}
-		} catch (IOException ex) {
-			ex.printStackTrace();
+		String[] percentage_capacities = getPercentageCapacities();
+		if(percentage_capacities != null && percentage_capacities.length > 0) {
+			capacity = Double.parseDouble(percentage_capacities[level - 1]);
+			// Apply capacity
+			hostMipsCapacity *= capacity;
 		}
 		// END - Get capacities from config file
 		if (reqMips < hostMipsCapacity) {
@@ -289,23 +301,14 @@ public class EdgeHost extends Host {
 	 */
 	public boolean isMIPSAvailable(MobileDevice mb) {
 		long maxMips = this.getTotalMips();
-		Log.printLine("isMIPSAvailable:maxMips: "+maxMips); 
+		Log.printLine("isMIPSAvailable:maxMips: "+maxMips);
 		//Get capacities from config file
-		String propertiesFile = "scripts/sample_application/config/default_config.properties";
 		double capacity = 1;
-		try {
-			InputStream input = new FileInputStream(propertiesFile);
-			// load a properties file
-			Properties prop = new Properties();
-			prop.load(input);
-			String[] percentage_capacities = prop.getProperty("percentage_capacity").split(",");
-			if(percentage_capacities.length > 0) {
-			     capacity = Double.parseDouble(percentage_capacities[level - 1]);
-			     // Apply capacity
-			     maxMips *= capacity;
-			}	
-		} catch (IOException ex) {
-			ex.printStackTrace();
+		String[] percentage_capacities = getPercentageCapacities();
+		if(percentage_capacities != null && percentage_capacities.length > 0) {
+		     capacity = Double.parseDouble(percentage_capacities[level - 1]);
+		     // Apply capacity
+		     maxMips *= capacity;
 		}
 		// END - Get capacities from config file
 		long tempLength = reserveMips + mb.getTaskLengthRequirement();

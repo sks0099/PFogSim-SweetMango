@@ -33,6 +33,7 @@ import edu.auburn.pFogSim.netsim.ESBModel;
 import edu.auburn.pFogSim.netsim.NodeSim;
 import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
 import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
+import edu.auburn.pFogSim.orchestrator.VoronoiImprovedSingleLayerOrchestrator;
 import edu.boun.ConstantsClass;
 import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
@@ -177,7 +178,9 @@ public class SimLogger {
 	public static void printLine(String msg) {
 		if (printLogEnabled) {
 			System.out.println(msg);
-			ps.println(msg);
+			if (ps != null) {
+				ps.println(msg);
+			}
 		}
 	}
 
@@ -189,7 +192,9 @@ public class SimLogger {
 	public static void print(String msg) {
 		if (printLogEnabled) {
 			System.out.print(msg);
-			ps.print(msg);
+			if (ps != null) {
+				ps.print(msg);
+			}
 		}
 	}
 	
@@ -543,15 +548,20 @@ public class SimLogger {
                 distBackFile = null, hopFile = null, hopsBackFile = null,
                 hafaNumHostsFile = null, hafaNumMsgsFile = null, hafaNumPuddlesFile = null,
                 slvNumHostsFile = null, slvNumMsgsFile = null, slvNumHostsSearchedFile = null,
+                islvNumHostsFile = null, islvNumMsgsFile = null, islvNumHostsSearchedFile = null,
                 energyUsageFile = null;
 		FileWriter successFW = null, failFW = null, vmLoadFW = null, fnMipsUtilFW = null, fnNwUtilFW = null, locationFW = null, distFW = null,
                 distBackFW = null, hopFW = null, hopsBackFW = null,
                 hafaNumHostsFW = null, hafaNumMsgsFW = null, hafaNumPuddlesFW = null,
-                slvNumHostsFW = null, slvNumMsgsFW = null, slvNumHostsSearchedFW = null, energyUsageFW = null;
+                slvNumHostsFW = null, slvNumMsgsFW = null, slvNumHostsSearchedFW = null,
+                islvNumHostsFW = null, islvNumMsgsFW = null, islvNumHostsSearchedFW = null,
+                energyUsageFW = null;
 		BufferedWriter successBW = null, failBW = null, vmLoadBW = null, fnMipsUtilBW = null, fnNwUtilBW = null, locationBW = null, distBW = null,
                 distBackBW = null, hopBW = null, hopsBackBW = null,
                 hafaNumHostsBW = null, hafaNumMsgsBW = null, hafaNumPuddlesBW = null,
-                slvNumHostsBW = null, slvNumMsgsBW = null, slvNumHostsSearchedBW = null, energyUsageBW = null;
+                slvNumHostsBW = null, slvNumMsgsBW = null, slvNumHostsSearchedBW = null,
+                islvNumHostsBW = null, islvNumMsgsBW = null, islvNumHostsSearchedBW = null,
+                energyUsageBW = null;
 
 		/*File[] vmLoadFileClay = new File[numOfAppTypes]; 
 		FileWriter[] vmLoadFWClay = new FileWriter[numOfAppTypes];
@@ -676,6 +686,7 @@ public class SimLogger {
 			hafaNumPuddlesFW = new FileWriter(hafaNumPuddlesFile, true);
 			hafaNumPuddlesBW = new BufferedWriter(hafaNumPuddlesFW);
 
+
             slvNumHostsFile = new File(outputFolder, filePrefix + "_NUMHOSTS.log");
             slvNumHostsFW = new FileWriter(slvNumHostsFile, true);
             slvNumHostsBW = new BufferedWriter(slvNumHostsFW);
@@ -687,7 +698,22 @@ public class SimLogger {
             slvNumHostsSearchedFile = new File(outputFolder, filePrefix + "_NUMHOSTSSEARCHED.log");
             slvNumHostsSearchedFW = new FileWriter(slvNumHostsSearchedFile, true);
             slvNumHostsSearchedBW = new BufferedWriter(slvNumHostsSearchedFW);
-			
+
+
+            islvNumHostsFile = new File(outputFolder, filePrefix + "_NUMHOSTS.log");
+            islvNumHostsFW = new FileWriter(islvNumHostsFile, true);
+            islvNumHostsBW = new BufferedWriter(islvNumHostsFW);
+
+            islvNumMsgsFile = new File(outputFolder, filePrefix + "_NUMMSGS.log");
+            islvNumMsgsFW = new FileWriter(islvNumMsgsFile, true);
+            islvNumMsgsBW = new BufferedWriter(islvNumMsgsFW);
+
+            islvNumHostsSearchedFile = new File(outputFolder, filePrefix + "_NUMHOSTSSEARCHED.log");
+            islvNumHostsSearchedFW = new FileWriter(islvNumHostsSearchedFile, true);
+            islvNumHostsSearchedBW = new BufferedWriter(islvNumHostsSearchedFW);
+
+
+
 			energyUsageFile = new File(outputFolder, filePrefix + "_ENERGY_USAGE.log");
 			energyUsageFW = new FileWriter(energyUsageFile, true);
 			energyUsageBW = new BufferedWriter(energyUsageFW);
@@ -1020,6 +1046,21 @@ public class SimLogger {
                 appendToFile(slvNumHostsBW, Integer.toString(numProsHosts[i]) + SimSettings.DELIMITER);
                 appendToFile(slvNumMsgsBW, Integer.toString(numMsgs[i]) + SimSettings.DELIMITER);
                 appendToFile(slvNumHostsSearchedBW, Integer.toString(numHostsSearched[i]) + SimSettings.DELIMITER);
+            }
+        }
+
+        if (SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiImprovedSingleLayerOrchestrator ) {
+
+            // Retrieve information regarding # of hosts, msgs, & Puddles for each service request (device)
+            numProsHosts = SimManager.getInstance().getEdgeOrchestrator().getNumProspectiveHosts();
+            numMsgs = SimManager.getInstance().getEdgeOrchestrator().getNumMessages();
+            numHostsSearched = SimManager.getInstance().getEdgeOrchestrator().getNumHostsSearched();
+
+            // Print info to corresponding files
+            for (int i=0; i<devCount; i++) {
+                appendToFile(islvNumHostsBW, Integer.toString(numProsHosts[i]) + SimSettings.DELIMITER);
+                appendToFile(islvNumMsgsBW, Integer.toString(numMsgs[i]) + SimSettings.DELIMITER);
+                appendToFile(islvNumHostsSearchedBW, Integer.toString(numHostsSearched[i]) + SimSettings.DELIMITER);
             }
         }
 		
@@ -1390,6 +1431,10 @@ SimSettings.DELIMITER;
 			printLine("Average number of Puddles searched for placement: " + String.format("%.2f", averageNumPuddles));
 		}
         if (SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiSingleLayerOrchestrator) {
+            double averageNumHostsSearched = SimManager.getInstance().getEdgeOrchestrator().getAvgNumHostsSearched();
+            printLine("Average number of Hosts searched for placement: " + String.format("%.2f", averageNumHostsSearched));
+        }
+        if (SimManager.getInstance().getEdgeOrchestrator() instanceof VoronoiImprovedSingleLayerOrchestrator) {
             double averageNumHostsSearched = SimManager.getInstance().getEdgeOrchestrator().getAvgNumHostsSearched();
             printLine("Average number of Hosts searched for placement: " + String.format("%.2f", averageNumHostsSearched));
         }
