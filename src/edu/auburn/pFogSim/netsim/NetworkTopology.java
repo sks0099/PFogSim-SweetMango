@@ -10,8 +10,11 @@ import edu.auburn.pFogSim.Puddle.Puddle;
 import edu.auburn.pFogSim.util.DataInterpreter;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -27,6 +30,14 @@ public class NetworkTopology {
 	private HashSet<NodeSim> mobileNodes;
 	private TreeSet<Location> coords;
 	private ArrayList<Puddle> pond;
+	// O(1) exact-coordinate lookup, kept in sync with `nodes` in addNode(). Used by findNode() as a
+	// fast path before falling back to the linear scan (needed for the wifi filter and nearest-neighbor cases).
+	private Map<List<Double>, NodeSim> locationToNode = new HashMap<>();
+
+	// Diagnostic timing instrumentation.
+	public static long totalFindNodeNanos = 0;
+	public static long totalFindNodeCalls = 0;
+	public static long totalFindNodeFullScans = 0;
 	
 	
 	/**
@@ -69,6 +80,7 @@ public class NetworkTopology {
 			}
 		}
 		nodes.add(in);
+		locationToNode.put(Arrays.asList(in.getLocation().getXPos(), in.getLocation().getYPos(), in.getLocation().getAltitude()), in);
 		
 	}
 	
@@ -195,6 +207,18 @@ public class NetworkTopology {
 	 * @return the closest node to the location
 	 */
 	public NodeSim findNode(double d, double e, double z, boolean wifi) {
+		long __t0 = System.nanoTime();
+		totalFindNodeCalls++;
+		// Fast path: O(1) exact-coordinate lookup. Falls through to the linear scan below when there's
+		// no exact match, or when there is one but it fails the wifi filter (the loop below still needs
+		// to run in that case, since a different node could be the correct wifi-eligible exact match... but
+		// since addNode() only ever stores one node per distinct coordinate, this can only mean no
+		// wifi-eligible node exists at that exact spot, so the loop's nearest-neighbor fallback runs correctly).
+		NodeSim exact = locationToNode.get(Arrays.asList(d, e, z));
+		if (exact != null && (!wifi || exact.isWifiAcc())) {
+			totalFindNodeNanos += System.nanoTime() - __t0;
+			return exact;
+		}
 		NodeSim closest = null;
 		double distanceNew = Double.MAX_VALUE;
 		double distance = Double.MAX_VALUE;
@@ -205,6 +229,7 @@ public class NetworkTopology {
 			Location nodeLocation = node.getLocation();
 			if (d == nodeLocation.getXPos() && e == nodeLocation.getYPos() && z == nodeLocation.getAltitude()) {
 				closest = node;
+				totalFindNodeNanos += System.nanoTime() - __t0;
 				return closest;
 			}
 			distanceNew = DataInterpreter.measure(nodeLocation.getYPos(), nodeLocation.getXPos(), nodeLocation.getAltitude(), e, d, z);
@@ -213,6 +238,8 @@ public class NetworkTopology {
 				closest = node;
 			}
 		}
+		totalFindNodeFullScans++;
+		totalFindNodeNanos += System.nanoTime() - __t0;
 		return closest;
 	}
 	
