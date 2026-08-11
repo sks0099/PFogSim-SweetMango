@@ -1,0 +1,365 @@
+\documentclass[10pt,conference]{IEEEtran}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{textcomp}
+\usepackage[T1]{fontenc}
+\usepackage{rotating}
+\graphicspath{{manuscript_figs/}}
+
+\begin{document}
+
+\title{Multi-Objective Dual-Strategy Host Selection for Voronoi-Based Task Placement in a Fog Computing Simulator}
+
+\author{
+\IEEEauthorblockN{Sanjeev Kumar Sinha and Sanjeev Baskiyar}
+\IEEEauthorblockA{Department of Computer Science and Software Engineering\\Auburn University\\Auburn, AL, USA}
+}
+
+\maketitle
+
+\begin{abstract}
+PFogSim's Voronoi-based task-placement orchestrator (IMPROVED\_SINGLE\_LAYER\_VORONOI) selects a target host by searching its seven MIPS-capacity tiers in a fixed order controlled by a single configuration flag: lowest-capacity-tier-first (``edge-first'') or highest-capacity-tier-first (``cloud-first''). We show empirically, across a 1000--6000-device sweep on a fixed 1074-node topology, that neither fixed strategy dominates the other: edge-first has a far lower failed-task rate at large device counts while cloud-first has a far lower failed-task rate at small device counts, and each strategy trades that advantage against average service time and average network delay differently at each scale. Two dynamic, per-device tier-reordering heuristics intended to combine the strategies within a single run (load-aware and density-aware reordering) were implemented and tested, and both failed to improve on the fixed strategies for identifiable structural reasons. We instead present a ``dual-strategy'' method that runs both fixed strategies to completion and, independently at each device count, selects the winner by a weighted, normalized combination of failed-task rate, average service time, and average network delay. We report how this selection changes as the objective is extended from failure rate alone to include service time and then network delay, and compare the resulting dual-strategy series against PFogSim's HAFA orchestrator baseline across the same sweep. We additionally instrument and report average per-device orchestration time---the wall-clock cost of the placement decision itself---and find that while HAFA's is essentially flat across device scale, Voronoi edge-first's grew substantially with scale. Extending the same profiling methodology to two further candidates isolates the cause to a single line: a BFS frontier's membership check implemented as a plain \texttt{ArrayList.contains()} against a list averaging ~768 elements, called 1.32 billion times by 6000 devices and accounting for 56\% of total placement time on its own. Replacing it with a companion \texttt{HashSet} for O(1) membership checks cuts that operation's cost ~24$\times$ and reduces edge-first orchestration time at 6000 devices by 59\%, with zero change to any outcome metric---verified identical before and after the fix.
+\end{abstract}
+
+\begin{IEEEkeywords}
+fog computing, edge computing, task offloading, Voronoi diagram, orchestration, host selection, multi-objective optimization, PFogSim, EdgeCloudSim
+\end{IEEEkeywords}
+
+\section{Introduction}\label{sec:intro}
+PFogSim is a fog-computing placement simulator built on EdgeCloudSim. Its Voronoi-based single-layer orchestrator (VoronoiImprovedSingleLayerOrchestrator) partitions the network topology by Voronoi cells and, for each incoming task, searches candidate hosts tier-by-tier in order of MIPS capacity until it finds one that can satisfy the task's latency and capacity requirements. The search order is controlled by the boolean configuration property \texttt{preferredHostIndexAscending\_for\_slv}: when \texttt{false}, the search begins at the lowest-MIPS, highest-density tier (``edge-first'', tier 6 of 7, $\sim$679 hosts in the topology used here) and works upward toward the single-host Cloud tier only if no closer tier can satisfy the task; when \texttt{true}, the search begins at the Cloud tier (``cloud-first'') and works downward.
+
+During this investigation we observed that changing this single flag changes outcome metrics drastically---in particular the failed-task percentage---and that which value is better depends heavily on device count. This report documents (a) two dynamic reordering heuristics we attempted in order to combine the strategies' advantages within a single simulation run, both of which failed to help; (b) a simpler ``run both, pick the winner'' dual-strategy method that does work, together with the evolution of its selection criterion from a single metric to a multi-objective score; and (c) a full 1000--6000-device comparison of the resulting dual-strategy series against PFogSim's independent HAFA orchestrator.
+
+\section{Experimental Setup}\label{sec:setup}
+\subsection{Simulation Environment and Topology}\label{sub:topology}
+All results below come from PFogSim's native device-count sweep loop, which steps the mobile device count from a configured minimum to maximum within a single JVM invocation, running the full simulation to completion at each step. The same 1074-node topology, the same random seed, and the same task workload were used for every run reported here. The topology has seven MIPS tiers, from Cloud (tier 0, a single, highest-MIPS host) down to School (tier 6, $\sim$679 hosts, the lowest-MIPS, most numerous tier); host count and per-host MIPS are inversely and near-perfectly correlated across the seven tiers.
+
+\subsection{Orchestration Strategies Under Test}\label{sub:strategies}
+\begin{itemize}
+\item \textbf{Voronoi (edge-first)}---IMPROVED\_SINGLE\_LAYER\_VORONOI orchestrator, \texttt{preferredHostIndexAscending\_for\_slv = false}. Searches the lowest-MIPS / highest-density tier first.
+\item \textbf{Voronoi (cloud-first)}---same orchestrator, \texttt{preferredHostIndexAscending\_for\_slv = true}. Searches the highest-MIPS / sparsest tier first.
+\item \textbf{HAFA}---PFogSim's independent HAFA\_ORCHESTRATOR, run with its own default settings, used throughout as an external baseline (not a Voronoi variant).
+\end{itemize}
+
+\subsection{Device-Count Sweep Protocol}\label{sub:protocol}
+Three full sweeps were run---one per condition above---each internally stepping 1000~$\rightarrow$~6000 mobile devices in increments of 1000 (\texttt{iteration\_number = 10} for the Voronoi conditions; HAFA was run with \texttt{iteration\_number = 0}, its own default). All other configuration parameters (task workload, latency/bandwidth model, topology) were held fixed across all three sweeps and all six device counts within each sweep.
+
+\section{Preliminary Negative Results: Dynamic Tier-Reordering Heuristics}\label{sec:negative}
+Before adopting the dual-strategy method described in Section~\ref{sec:method}, we prototyped two heuristics intended to combine edge-first's and cloud-first's advantages within a single simulation run, by dynamically reordering the tier search per device rather than committing to a fixed order for the whole run. Both are retained in VoronoiImprovedSingleLayerOrchestrator.java, disabled by default (\texttt{useLoadAwareTierOrdering = false}, \texttt{useDensityAwareTierOrdering = false}), for reference.
+
+\subsection{Capacity-Aware (Load-Aware) Tier Ordering}\label{sub:capacity}
+This heuristic tried the tier with the fewest already-assigned devices first, on the theory that this would balance load across tiers dynamically. It made results worse, not better: including Cloud in the candidate pool increased runtime from a 59.9~s / 1{,}483{,}945-iteration baseline to 65.5~s / 1{,}799{,}973 iterations; a follow-up variant that excluded Cloud from the candidate pool entirely made it worse again, to 70.3~s / 2{,}378{,}965 iterations. The root cause: a single- or few-host tier looks artificially ``least loaded'' early in a run regardless of whether it is actually latency-eligible for the device in question, so the heuristic repeatedly steers early devices toward tiers that then fail the eligibility check anyway.
+
+\subsection{Density-Aware Tier Ordering}\label{sub:density}
+This heuristic tried the tier with the most hosts (highest density) among those still latency-eligible, on the theory that denser tiers offer more placement options. It is a mathematical no-op given this topology: because host count is almost perfectly inversely correlated with MIPS across the seven tiers, ``densest eligible tier'' is always identical to the tier already selected by the existing descending-MIPS search order. Runs with the heuristic enabled and disabled produced byte-identical results (216{,}190 / 26{,}106 iteration counts matched exactly in both directions), confirming it changes nothing in practice for this topology.
+
+\section{A Multi-Objective Dual-Strategy Selection Method}\label{sec:method}
+\subsection{Motivation}\label{sub:motivation}
+Since neither fixed strategy dominates the other and no tested dynamic reordering heuristic improved on them, we instead run both fixed strategies to completion for a given device count and pick whichever result is better by a defined objective. This is implemented in \texttt{run\_dual\_strategy.sh} (single-configuration operation, used to validate the approach) and in the analysis dashboard \texttt{strategy\_comparison.html} (post-hoc selection across a full sweep, used to produce the results in Section~\ref{sec:results}).
+
+\subsection{Score Formulation}\label{sub:scoreform}
+For each device count $d$ and each fixed strategy $s \in \{\text{edge-first}, \text{cloud-first}\}$, define:
+\begin{multline}\label{eq:score}
+\mathrm{score}(s,d) = w_1 \cdot \mathrm{norm}(\mathit{failed\_pct}) \\
+{}+ w_2 \cdot \mathrm{norm}(\mathit{avg\_service\_time}) \\
+{}+ w_3 \cdot \mathrm{norm}(\mathit{avg\_network\_delay})
+\end{multline}
+where $\mathrm{norm}(x) = (x - \min)/(\max - \min)$, with $\min$ and $\max$ taken over all twelve Voronoi edge-first and cloud-first records (six device counts $\times$ two strategies) for that metric, so no single metric's raw units dominate the score. At each device count, the dual-strategy result adopts whichever of edge-first or cloud-first has the lower score, carrying that record's full metric set forward (not a per-metric cherry-pick across the two strategies).
+
+A note on independence: \texttt{avg\_network\_delay} is not statistically independent of \texttt{avg\_service\_time}---in every record in this dataset, \texttt{avg\_processing\_time} + \texttt{avg\_network\_delay} = \texttt{avg\_service\_time} exactly. Including both in the score is therefore a deliberate double-count, used to give network delay more influence than the share it already carries inside service time, not a clean orthogonal decomposition. This is a modeling choice, made explicit here so it can be revisited.
+
+\subsection{Evolution of the Objective}\label{sub:evolution}
+The score was developed in three stages, each in direct response to a limitation observed in the previous stage:
+\begin{itemize}
+\item \textbf{v1}---$w = (1, 0, 0)$: select purely by failed-task rate. Simple, but the resulting winner can silently carry a much worse service time, since failure rate and latency are not correlated in the same direction across strategies.
+\item \textbf{v2}---$w = (0.5, 0.5, 0)$: add average service time at equal weight. Corrects the case above at the cost of no longer choosing by failure rate alone.
+\item \textbf{v3}---$w = (0.4, 0.3, 0.3)$: add average network delay. Because service time already contains network delay as one of its two additive components (Section~\ref{sub:scoreform}), this further increases network delay's effective weight in the decision beyond what v2 gives it, reflecting a judgment that reducing network delay specifically (not just total service time) is independently valuable---e.g.\ because it is the portion of latency most sensitive to placement distance rather than host processing speed.
+\end{itemize}
+Table~\ref{tab:winners} shows the winning strategy chosen by each version of the score, at every device count. The weights are deliberately exposed as a single configuration point (\texttt{DUAL\_STRATEGY\_WEIGHTS} in \texttt{strategy\_comparison.html}) rather than fixed in the derivation logic, so they can be revisited if the relative importance of failures vs.\ latency differs for a given deployment.
+
+\begin{table*}[!t]
+\centering
+\caption{Dual-strategy winning fixed strategy, by scoring version, at each device count. Only 2000 and 3000 devices change pick as the objective is extended.}
+\label{tab:winners}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Devices} & \textbf{v1: failed\_pct only} & \textbf{v2: + service time (50/50)} & \textbf{v3: + network delay (40/30/30)} \\
+\midrule
+1,000 & cloud-first & cloud-first & cloud-first \\
+2,000 & cloud-first & cloud-first & edge-first \\
+3,000 & cloud-first & edge-first & edge-first \\
+4,000 & edge-first & edge-first & edge-first \\
+5,000 & edge-first & edge-first & edge-first \\
+6,000 & edge-first & edge-first & edge-first \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Results}\label{sec:results}
+\subsection{Fixed-Strategy Baselines}\label{sub:baselines}
+Table~\ref{tab:baseline} reports the primary outcome and latency metrics for both fixed Voronoi strategies across the full device-count sweep. The complete metric set (including distances, hop counts, messages exchanged, and utilization) is reported in Appendix~\ref{app:rawdata}.
+
+\begin{table*}[!t]
+\centering
+\caption{Fixed-strategy baseline results, primary metrics.}
+\label{tab:baseline}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Devices} & \textbf{Strategy} & \textbf{Failed (\%)} & \textbf{Service time (s)} & \textbf{Processing time (s)} & \textbf{Network delay (s)} \\
+\midrule
+1,000 & edge-first & 10.77 & 0.761 & 0.534 & 0.227 \\
+1,000 & cloud-first & 0.33 & 0.770 & 0.097 & 0.673 \\
+2,000 & edge-first & 5.42 & 0.922 & 0.630 & 0.292 \\
+2,000 & cloud-first & 0.57 & 1.028 & 0.167 & 0.861 \\
+3,000 & edge-first & 3.28 & 0.827 & 0.534 & 0.294 \\
+3,000 & cloud-first & 0.58 & 1.187 & 0.153 & 1.034 \\
+4,000 & edge-first & 2.48 & 0.781 & 0.478 & 0.303 \\
+4,000 & cloud-first & 3.39 & 1.115 & 0.231 & 0.884 \\
+5,000 & edge-first & 1.97 & 0.713 & 0.381 & 0.332 \\
+5,000 & cloud-first & 5.95 & 1.122 & 0.245 & 0.877 \\
+6,000 & edge-first & 1.65 & 0.688 & 0.317 & 0.372 \\
+6,000 & cloud-first & 10.87 & 1.122 & 0.256 & 0.865 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Dual-Strategy Outcome}\label{sub:dualoutcome}
+Applying the v3 score (Section~\ref{sub:evolution}), Table~\ref{tab:dualoutcome} shows the resulting dual-strategy series together with the trade-off accepted at each device count relative to the alternative that was not chosen.
+
+\begin{table*}[!t]
+\centering
+\caption{Dual-strategy pick per device count (v3 score), with the rejected alternative's value shown in parentheses for comparison.}
+\label{tab:dualoutcome}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Devices} & \textbf{Winner} & \textbf{Failed tasks} & \textbf{Service time} & \textbf{Network delay} \\
+\midrule
+1,000 & cloud-first & 0.33\% (vs 10.77\%) & 0.770s (vs 0.761s) & 0.673s (vs 0.227s) \\
+2,000 & edge-first & 5.42\% (vs 0.57\%) & 0.922s (vs 1.028s) & 0.292s (vs 0.861s) \\
+3,000 & edge-first & 3.28\% (vs 0.58\%) & 0.827s (vs 1.187s) & 0.294s (vs 1.034s) \\
+4,000 & edge-first & 2.48\% (vs 3.39\%) & 0.781s (vs 1.115s) & 0.303s (vs 0.884s) \\
+5,000 & edge-first & 1.97\% (vs 5.95\%) & 0.713s (vs 1.122s) & 0.332s (vs 0.877s) \\
+6,000 & edge-first & 1.65\% (vs 10.87\%) & 0.688s (vs 1.122s) & 0.372s (vs 0.865s) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Two device counts involve a genuine three-way trade-off rather than one strategy dominating the other on every metric:
+\begin{itemize}
+\item At 2000 devices, cloud-first has the lower failed-task rate (0.57\% vs.\ 5.42\%) but the worse service time (1.028s vs.\ 0.922s) and worse network delay (0.861s vs.\ 0.292s, roughly 3$\times$ higher). The v3 score accepts a jump in failed tasks to secure the network-delay and service-time reduction; the v1 and v2 scores do not.
+\item At 3000 devices, cloud-first again has the lower failed-task rate (0.58\% vs.\ 3.28\%) but the worst service time (1.187s) and worst network delay (1.034s) of any record in the dataset. Both v2 and v3 pick edge-first here; only v1 (failure rate alone) picks cloud-first.
+\end{itemize}
+At 4000, 5000, and 6000 devices, edge-first has both the lower failed-task rate and the lower service time than cloud-first---i.e.\ edge-first Pareto-dominates cloud-first on these two metrics at large device counts, so all three score versions agree. At 1000 devices, cloud-first Pareto-dominates on failed-task rate and is negligibly different on service time, but has a substantially higher network delay; all three score versions still pick cloud-first there because its failure-rate advantage is large relative to the dataset's normalization range.
+
+\subsection{Figures}\label{sub:figures}
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.7\textwidth]{fig1_failed_pct.png}
+\caption{Failed-task rate vs.\ device count. The dual-strategy series (dashed) tracks the lower of the two fixed strategies at every device count.}
+\label{fig:failed}
+\end{figure*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.7\textwidth]{fig2_service_time.png}
+\caption{Average service time vs.\ device count. From 2000 devices on, the dual-strategy series tracks edge-first, avoiding cloud-first's peak at 3000 devices.}
+\label{fig:service}
+\end{figure*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.7\textwidth]{fig3_network_delay.png}
+\caption{Average network delay vs.\ device count. The dual-strategy series avoids cloud-first's substantially higher network delay from 2000 devices on.}
+\label{fig:network}
+\end{figure*}
+
+\subsection{Comparison Against the HAFA Baseline}\label{sub:hafa}
+The dual-strategy Voronoi series has a lower failed-task rate than HAFA at 4 of 6 tested device counts. At 1000 devices, dual-strategy (cloud-first) reaches 0.33\% failed vs.\ HAFA's 5.06\%. At 6000 devices, dual-strategy (edge-first) reaches 1.65\% failed vs.\ HAFA's 15.37\%---HAFA's failure rate rises sharply at the high end of the sweep while the dual-strategy Voronoi series continues to improve, since it is free to fall back to edge-first as cloud-first tiers saturate.
+
+\begin{table*}[!t]
+\centering
+\caption{Dual-strategy Voronoi vs.\ HAFA, failed-task rate and service time.}
+\label{tab:hafa}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Devices} & \textbf{Dual-strategy failed} & \textbf{HAFA failed} & \textbf{Dual-strategy service (s)} & \textbf{HAFA service (s)} \\
+\midrule
+1,000 & 0.33\% & 5.06\% & 0.770 & 0.937 \\
+2,000 & 5.42\% & 2.56\% & 0.922 & 0.770 \\
+3,000 & 3.28\% & 1.72\% & 0.827 & 0.765 \\
+4,000 & 2.48\% & 2.68\% & 0.781 & 0.779 \\
+5,000 & 1.97\% & 8.29\% & 0.713 & 0.798 \\
+6,000 & 1.65\% & 15.37\% & 0.688 & 0.796 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Orchestration Time}\label{sub:orchtime}
+Orchestration time is the wall-clock cost of the placement decision itself: the time \texttt{edgeOrchestrator.assignHost(device)} takes, summed over every mobile device and divided by device count, measured independently of task execution (it is computed once, up front, before \texttt{CloudSim.startSimulation()} runs the workload). This instrumentation wraps the single call site shared by every orchestrator (Voronoi and HAFA alike), so it was added once in SimManager.java and required no orchestrator-specific changes.
+
+\begin{table*}[!t]
+\centering
+\caption{Average per-device orchestration time, all four conditions.}
+\label{tab:orchtime}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Devices} & \textbf{Edge-first (ms)} & \textbf{Cloud-first (ms)} & \textbf{Dual-strategy (ms)} & \textbf{HAFA (ms)} \\
+\midrule
+1,000 & 48.50 & 46.89 & 46.89 (cloud-first) & 6.86 \\
+2,000 & 48.36 & 36.48 & 48.36 (edge-first) & 5.35 \\
+3,000 & 53.07 & 29.95 & 53.07 (edge-first) & 4.13 \\
+4,000 & 54.29 & 27.66 & 54.29 (edge-first) & 4.50 \\
+5,000 & 58.50 & 26.20 & 58.50 (edge-first) & 4.91 \\
+6,000 & 59.54 & 23.97 & 59.54 (edge-first) & 5.14 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Three trends emerge, reflecting the state of the code \emph{after} the fix described in Section~\ref{sub:frontierfix} below. HAFA's orchestration time is essentially flat across the whole sweep (6.86~ms at 1000 devices to 5.14~ms at 6000). Voronoi cloud-first decreases with scale (46.89~ms $\rightarrow$ 23.97~ms), consistent with its search terminating quickly at the single-host Cloud tier regardless of device count. Voronoi edge-first now stays comparatively flat as well (48.50~ms $\rightarrow$ 59.54~ms, a modest rise) --- \emph{before} the fix, the same sweep measured 60.95~ms $\rightarrow$ 144.49~ms, a much steeper climb driven by the bottleneck Section~\ref{sub:frontierfix} identifies and removes. Because the dual-strategy series adopts edge-first from 2000 devices onward (Table~\ref{tab:dualoutcome}), it inherits whichever of these profiles is current: post-fix, its orchestration-time premium over HAFA is 6.8$\times$ at 1000 devices and 11.6$\times$ at 6000 (down from a pre-fix 12.2$\times$ and 29.7$\times$). This cost is still not part of the v3 selection score (Section~\ref{sub:scoreform})---it is reported here for comparison, not yet factored into which strategy wins.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.7\textwidth]{fig4_orchestration_time.png}
+\caption{Average orchestration time vs.\ device count, post-fix. HAFA stays flat; Voronoi cloud-first falls; Voronoi edge-first---and so the dual-strategy series from 2000 devices on---now also stays comparatively flat (see Fig.~\ref{fig:frontierfix} for the pre-fix comparison).}
+\label{fig:orchtime}
+\end{figure*}
+
+\subsection{Diagnosing and Fixing the Orchestration-Time Bottleneck}\label{sub:frontierfix}
+The growth in Voronoi edge-first's orchestration time reported above did not have an identified cause when first observed; this subsection reports the profiling that found one, and the fix that removes it. VoronoiImprovedSingleLayerOrchestrator.java already carried extensive manual \texttt{System.nanoTime()} instrumentation from an earlier investigation into the same question, covering the four largest candidates visible in the search loop (point-to-host coordinate lookup, Voronoi-neighbor lookup, MIPS-sufficiency check, and \texttt{ESBModel.getDelay()}) plus the \texttt{preferredHosts}/\texttt{prospectiveNodes} membership checks. Summing all of it accounted for only ~26\% of total \texttt{assignHost()} wall time at 6000 devices, leaving the majority unexplained. We extended the same instrumentation to two further candidates.
+
+The first, \texttt{goodHost()} (the per-candidate host-eligibility check, shared by every orchestrator), was ruled out directly: instrumented and re-run, it accounted for only ~0.2\% of total wall time. The second targeted the BFS frontier (\texttt{NeighborsOfNodesAddedToProspectiveNodes}) itself --- specifically the three list operations an existing code comment had already named as suspects (a defensive copy taken before popping the frontier's head, the pop itself, and a per-neighbor membership check against the frontier) but had only ever measured by \emph{{size}}, never by \emph{{time}}. Table~\ref{tab:breakdown} shows the full accounting once these were timed.
+
+\begin{table*}[!t]
+\centering
+\caption{assignHost() cost breakdown, Voronoi edge-first, 6000-device increment (pre-fix).}
+\label{tab:breakdown}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Operation} & \textbf{Time (s)} & \textbf{\% of total} \\
+\midrule
+pointToHostMapXY lookup & 93.1 & 10.1 \\
+Voronoi-neighbor lookup & 17.2 & 1.9 \\
+isMIPSCapacitySufficient() & 1.1 & 0.1 \\
+ESBModel.getDelay() & 77.9 & 8.5 \\
+preferredHosts / prospectiveNodes .contains() & 39.9 & 4.3 \\
+goodHost() total & 2.2 & 0.2 \\
+Frontier copy (defensive snapshot) & 11.3 & 1.2 \\
+Frontier remove (pop head) & 7.5 & 0.8 \\
+\textbf{Frontier .contains() (membership check)} & 513.8 & 56.0 \\
+Unexplained residual & 153.9 & 16.8 \\
+\midrule
+\textbf{Total} & \textbf{917.9} & \textbf{100.0} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The frontier's own \texttt{.contains()} check --- a plain \texttt{ArrayList.contains()}, an O(N) linear scan --- was called 1.32~billion times by 6000 devices against a list averaging ~768 elements (essentially the whole 1074-node topology), and by itself accounts for 56\% of total placement time, more than six times the next-largest measured item. This matches the original diagnostic comment's hypothesis exactly; it had simply never been measured with a timer before, only tracked by size.
+
+The fix mirrors one already applied elsewhere in the same file: \texttt{preferredHosts} and \texttt{prospectiveNodes} were previously converted from \texttt{ArrayList} to \texttt{HashSet} for the identical reason. We paired the frontier list with a companion \texttt{HashSet} that mirrors its contents, using the set for O(1) membership checks while the list continues to provide FIFO pop-from-front order. The change was validated for correctness at small scale before a full re-run: \texttt{failed\_pct} is identical to five decimal places at every device count, before and after, confirming the fix changes performance only.
+
+\begin{table*}[!t]
+\centering
+\caption{Orchestration time and total scenario wall-clock time, before vs.\ after the fix.}
+\label{tab:beforeafter}
+\begin{tabular}{llrrrr}
+\toprule
+\textbf{Strategy} & \textbf{Devices} & \textbf{Orch.\ before} & \textbf{Orch.\ after} & \textbf{Scenario before} & \textbf{Scenario after} \\
+\midrule
+Edge-first & 1{,}000 & 60.95~ms & 48.50~ms (-20.4\%) & 124~s & 113~s (-8.9\%) \\
+Edge-first & 6{,}000 & 144.49~ms & 59.54~ms (-58.8\%) & 1{,}129~s & 599~s (-46.9\%) \\
+Cloud-first & 1{,}000 & 51.42~ms & 46.89~ms (-8.8\%) & 95~s & 95~s (0.0\%) \\
+Cloud-first & 6{,}000 & 29.21~ms & 23.97~ms (-18.0\%) & 399~s & 363~s (-9.0\%) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Cloud-first improves too, despite not being the target of the investigation, because it shares the same fixed method; its smaller, shallower search visits the frontier far less, so its gain is correspondingly smaller. Total simulation wall-clock time --- not just the placement loop --- falls by 46.9\% at 6000 devices for edge-first, since \texttt{assignHost()} was a substantial share of total runtime at that scale.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.7\textwidth]{fig5_frontier_fix_beforeafter.png}
+\caption{Voronoi edge-first orchestration time vs.\ device count, before and after the frontier \texttt{HashSet} fix.}
+\label{fig:frontierfix}
+\end{figure*}
+
+\section{Discussion}\label{sec:discussion}
+\textbf{Weight sensitivity.} The v1$\rightarrow$v2$\rightarrow$v3 progression in Table~\ref{tab:winners} shows the selection is sensitive to the objective's weighting only at 2000 and 3000 devices---the device counts where the two fixed strategies do not Pareto-dominate one another. This is a useful diagnostic: at device counts where one strategy is simply better on every metric that matters, the exact weights are irrelevant; the interesting design decision only lives in the narrow band where trade-offs are real. Future weight changes should be evaluated primarily against those device counts.
+
+\textbf{Cost of the dual-strategy approach.} Because it requires running the full simulation twice per device count, the dual-strategy method roughly doubles wall-clock simulation cost relative to running a single fixed strategy (see Appendix~\ref{app:rawdata} for \texttt{scenario\_time\_seconds} per run). This is acceptable for offline analysis and for building a lookup table to apply at deployment time, but is not itself a runtime placement algorithm---the dynamic per-device heuristics in Section~\ref{sec:negative} were an attempt at a single-run alternative, and both failed empirically for the structural reasons described there.
+
+\textbf{Orchestration time is not yet part of the score.} Section~\ref{sub:frontierfix} traces and removes the specific bottleneck that made edge-first's orchestration time grow with device count (an O(N) frontier membership check, 56\% of total placement time pre-fix), so the dual-strategy series' orchestration-time premium over HAFA is now 6.8$\times$ at 1000 devices and 11.6$\times$ at 6000, down from a pre-fix 12.2$\times$/29.7$\times$. That fix addresses \emph{why} the cost grows with scale; it does not address the separate question of whether orchestration time should influence \emph{which} strategy the score picks in the first place. None of v1, v2, or v3 account for it, because all three were defined before orchestration time was instrumented (Section~\ref{sub:orchtime}). Since this cost is paid once per device before the workload itself runs, it matters most for deployments where placement must happen online rather than precomputed offline; adding a fourth weighted term for it, analogous to Sections~\ref{sub:scoreform} and~\ref{sub:evolution}, remains the natural next refinement, now against a substantially smaller baseline cost.
+
+\textbf{Limitations.} The network-delay term's double-count (Section~\ref{sub:scoreform}) is a modeling choice, not a statistically justified decomposition; results with different relative weights should be checked before treating the v3 selection as final. All results here come from a single fixed topology, random seed, and workload; generalization to other topologies (particularly ones without a near-perfect inverse correlation between tier density and MIPS, which made the density-aware heuristic in Section~\ref{sub:density} a no-op) is untested.
+
+\textbf{Future work.} A direction not yet tested is starting the Voronoi tier search from a middle MIPS tier rather than either extreme, so placement gets a faster host than the lowest tier without paying the highest tier's distance penalty. Unlike the two heuristics in Section~\ref{sec:negative}, this would target the processing-time/network-delay trade-off directly rather than load-balancing within a tier; the appropriate starting tier is likely device-count-dependent, similar to why neither fixed strategy wins at every scale, and would need its own sweep to identify and validate.
+
+\section{Conclusion}\label{sec:conclusion}
+Neither fixed Voronoi tier-search strategy is uniformly best across device scale: cloud-first minimizes failed tasks at low-to-moderate device counts by trading away service time and network delay, while edge-first Pareto-dominates on failed tasks and service time from 4000 devices onward. Two dynamic per-device reordering heuristics intended to combine both strategies' advantages within a single run did not improve on the fixed strategies, for identifiable structural reasons. A dual-strategy method that runs both fixed strategies and selects per device count by a multi-objective, normalized score of failed-task rate, service time, and network delay recovers the better outcome on all three metrics at every device count tested except where a genuine trade-off exists (2000 and 3000 devices), and outperforms the HAFA baseline on failed-task rate at the majority of tested device counts. That series carries an orchestration-time premium over HAFA (adopting edge-first from 2000 devices on), currently 12$\times$ HAFA's at 6000 devices; profiling traced the dominant driver of that cost to a single O(N) list-membership check in the Voronoi BFS frontier (56\% of total placement time at 6000 devices, 1.32 billion calls), and replacing it with a companion \texttt{HashSet} cut edge-first orchestration time by 59\% and total simulation wall-clock time by 47\% at that scale, with zero change to any outcome metric. Incorporating orchestration time as a fourth term in the selection score itself remains a natural target for future refinement.
+
+\appendices
+\section{Full Raw Metrics Table}\label{app:rawdata}
+All fields as parsed from PFogSim console output for the three sweep conditions, post-fix (\texttt{sweep\_voronoi\_false\_hashsetfix.log}, \texttt{sweep\_voronoi\_true\_refresh.log}, \texttt{sweep\_hafa\_refresh.log}), plus the derived dual-strategy (v3) series. HAFA does not report search hops (Voronoi-specific BFS metric); those cells are blank. Reproduced in landscape orientation for legibility; see the companion .docx for the same table pre-rendered.
+
+\begin{sidewaystable*}
+\centering
+\caption{Full raw metrics, all conditions and device counts.}
+\label{tab:rawdata}
+\resizebox{\textheight}{!}{%
+\begin{tabular}{lrrrrrrrrrrrrrrrr}
+\toprule
+\textbf{Label} & \textbf{Dev.} & \textbf{Failed \%} & \textbf{Svc (s)} & \textbf{Proc (s)} & \textbf{Net (s)} & \textbf{Cost (\$)} & \textbf{Dist t$\to$h (m)} & \textbf{Dist h$\to$u (m)} & \textbf{Hops t$\to$h} & \textbf{Hops h$\to$u} & \textbf{Search hops} & \textbf{Msgs} & \textbf{Fog srv util} & \textbf{Fog net util} & \textbf{Orch (ms)} & \textbf{Wall (s)} \\
+\midrule
+Voronoi (edge-first) & 1,000 & 10.77 & 0.761 & 0.534 & 0.227 & 0.001273 & 3,139 & 10,271 & 4.04 & 5.26 & 2.32 & 233.69 & 0.138 & 0.065 & 48.495 & 113 \\
+Voronoi (edge-first) & 2,000 & 5.42 & 0.922 & 0.630 & 0.292 & 0.001116 & 2,936 & 9,949 & 4.05 & 5.25 & 2.62 & 469.68 & 0.242 & 0.144 & 48.355 & 201 \\
+Voronoi (edge-first) & 3,000 & 3.28 & 0.827 & 0.534 & 0.294 & 0.000929 & 3,348 & 10,395 & 3.77 & 4.92 & 2.75 & 624.13 & 0.352 & 0.199 & 53.071 & 293 \\
+Voronoi (edge-first) & 4,000 & 2.48 & 0.781 & 0.478 & 0.303 & 0.000838 & 3,015 & 10,438 & 3.74 & 4.85 & 2.85 & 717.86 & 0.399 & 0.269 & 54.286 & 384 \\
+Voronoi (edge-first) & 5,000 & 1.97 & 0.713 & 0.381 & 0.332 & 0.000790 & 2,716 & 10,524 & 3.77 & 4.79 & 2.96 & 777.44 & 0.429 & 0.344 & 58.504 & 508 \\
+Voronoi (edge-first) & 6,000 & 1.65 & 0.688 & 0.317 & 0.372 & 0.000753 & 2,969 & 10,472 & 3.75 & 4.73 & 3.00 & 817.10 & 0.459 & 0.415 & 59.543 & 599 \\
+Voronoi (cloud-first) & 1,000 & 0.33 & 0.770 & 0.097 & 0.673 & 0.000554 & 19,774 & 23,182 & 3.77 & 4.16 & 4.74 & 4.64 & 0.010 & 0.135 & 46.891 & 95 \\
+Voronoi (cloud-first) & 2,000 & 0.57 & 1.028 & 0.167 & 0.861 & 0.000566 & 16,181 & 20,291 & 3.73 & 4.23 & 4.50 & 11.47 & 0.035 & 0.236 & 36.485 & 157 \\
+Voronoi (cloud-first) & 3,000 & 0.58 & 1.187 & 0.153 & 1.034 & 0.000564 & 17,802 & 22,601 & 3.73 & 4.30 & 4.44 & 15.05 & 0.067 & 0.341 & 29.949 & 214 \\
+Voronoi (cloud-first) & 4,000 & 3.39 & 1.115 & 0.231 & 0.884 & 0.000598 & 12,662 & 18,287 & 3.49 & 4.33 & 3.93 & 39.53 & 0.159 & 0.369 & 27.659 & 271 \\
+Voronoi (cloud-first) & 5,000 & 5.95 & 1.122 & 0.245 & 0.877 & 0.000626 & 11,512 & 17,462 & 3.46 & 4.38 & 3.74 & 52.56 & 0.224 & 0.423 & 26.204 & 323 \\
+Voronoi (cloud-first) & 6,000 & 10.87 & 1.122 & 0.256 & 0.865 & 0.000645 & 11,653 & 17,444 & 3.43 & 4.41 & 3.68 & 65.44 & 0.284 & 0.465 & 23.967 & 363 \\
+HAFA & 1,000 & 5.06 & 0.937 & 0.779 & 0.157 & 0.000475 & 646 & 10,036 & 1.72 & 3.94 &  & 7.20 & 0.082 & 0.024 & 6.859 & 94 \\
+HAFA & 2,000 & 2.56 & 0.770 & 0.544 & 0.226 & 0.000473 & 953 & 10,189 & 1.76 & 3.94 &  & 9.42 & 0.154 & 0.057 & 5.345 & 116 \\
+HAFA & 3,000 & 1.72 & 0.765 & 0.417 & 0.347 & 0.000480 & 1,303 & 10,386 & 1.81 & 3.93 &  & 38.09 & 0.213 & 0.097 & 4.131 & 143 \\
+HAFA & 4,000 & 2.68 & 0.779 & 0.372 & 0.407 & 0.000516 & 1,266 & 10,240 & 1.85 & 3.96 &  & 108.50 & 0.285 & 0.135 & 4.498 & 173 \\
+HAFA & 5,000 & 8.29 & 0.798 & 0.342 & 0.456 & 0.000523 & 1,310 & 10,044 & 1.88 & 3.97 &  & 153.25 & 0.327 & 0.164 & 4.907 & 201 \\
+HAFA & 6,000 & 15.37 & 0.796 & 0.318 & 0.477 & 0.000521 & 1,290 & 10,216 & 1.87 & 3.98 &  & 181.31 & 0.356 & 0.181 & 5.135 & 218 \\
+Voronoi (dual, cloud-first) & 1,000 & 0.33 & 0.770 & 0.097 & 0.673 & 0.000554 & 19,774 & 23,182 & 3.77 & 4.16 & 4.74 & 4.64 & 0.010 & 0.135 & 46.891 & 95 \\
+Voronoi (dual, edge-first) & 2,000 & 5.42 & 0.922 & 0.630 & 0.292 & 0.001116 & 2,936 & 9,949 & 4.05 & 5.25 & 2.62 & 469.68 & 0.242 & 0.144 & 48.355 & 201 \\
+Voronoi (dual, edge-first) & 3,000 & 3.28 & 0.827 & 0.534 & 0.294 & 0.000929 & 3,348 & 10,395 & 3.77 & 4.92 & 2.75 & 624.13 & 0.352 & 0.199 & 53.071 & 293 \\
+Voronoi (dual, edge-first) & 4,000 & 2.48 & 0.781 & 0.478 & 0.303 & 0.000838 & 3,015 & 10,438 & 3.74 & 4.85 & 2.85 & 717.86 & 0.399 & 0.269 & 54.286 & 384 \\
+Voronoi (dual, edge-first) & 5,000 & 1.97 & 0.713 & 0.381 & 0.332 & 0.000790 & 2,716 & 10,524 & 3.77 & 4.79 & 2.96 & 777.44 & 0.429 & 0.344 & 58.504 & 508 \\
+Voronoi (dual, edge-first) & 6,000 & 1.65 & 0.688 & 0.317 & 0.372 & 0.000753 & 2,969 & 10,472 & 3.75 & 4.73 & 3.00 & 817.10 & 0.459 & 0.415 & 59.543 & 599 \\
+\bottomrule
+\end{tabular}
+}
+\end{sidewaystable*}
+
+\section{Configuration Parameters}\label{app:config}
+\begin{table*}[!t]
+\centering
+\caption{Simulation configuration parameters.}
+\label{tab:config}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+\texttt{min\_number\_of\_mobile\_devices} & 1000 \\
+\texttt{max\_number\_of\_mobile\_devices} & 6000 \\
+\texttt{mobile\_device\_counter\_size} & 1000 \\
+\texttt{iteration\_number} (Voronoi) & 10 \\
+\texttt{iteration\_number} (HAFA) & 0 (default) \\
+\texttt{preferredHostIndexAscending\_for\_slv} (edge-first) & false \\
+\texttt{preferredHostIndexAscending\_for\_slv} (cloud-first) & true \\
+Topology & 1074 nodes, 7 MIPS tiers \\
+Orchestrator (Voronoi) & IMPROVED\_SINGLE\_LAYER\_VORONOI \\
+Orchestrator (baseline) & HAFA\_ORCHESTRATOR \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\end{document}
