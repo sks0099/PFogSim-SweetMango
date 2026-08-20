@@ -30,12 +30,6 @@ public class Router {
 	private HashMap<String, LinkedList<NodeSim>> database;
 
 	private HashMap<NodeSim, HashMap<NodeSim, LinkedList<NodeSim>>> pathFinder = new HashMap<>();
-
-	// Diagnostic timing instrumentation.
-	public static long totalFindPathCalls = 0;
-	public static long totalCacheHits = 0;
-	public static long totalCacheMisses = 0;
-	public static long totalDijkstraNanos = 0;
 	
 	/**
 	 * 
@@ -53,7 +47,6 @@ public class Router {
 	 * @return
 	 */
 	public LinkedList<NodeSim> findPath(NetworkTopology network, NodeSim src, NodeSim dest ) {
-		totalFindPathCalls++;
 		LinkedList<NodeSim> travelQueue;
 		LinkedList<NodeSim> path = new LinkedList<NodeSim>();
 		String route;
@@ -75,7 +68,6 @@ public class Router {
 			//System.out.println("pathFinder.get(src).get(dest) = "+pathFinder.get(src).get(dest));
 			//if (pathFinder.get(src).get(dest) != null) {// Added by sks0099 on 08/18/25
 				if (pathFinder.containsKey(src) && pathFinder.get(src).containsKey(dest) && !pathFinder.get(src).get(dest).isEmpty()) {
-					totalCacheHits++;
 					return new LinkedList<>(pathFinder.get(src).get(dest));
 				}
 			//}// Added by sks0099 on 08/18/25
@@ -92,8 +84,7 @@ public class Router {
 //			pathFinder.get(src).put(dest, newPath);
 //			return pathFinder.get(src).get(dest);
 //		}
-		totalCacheMisses++;
-		long __dijkstraT0 = System.nanoTime();
+
 		router.runDijkstra((Set<NodeSim>) network.getNodes(), src);
 		HashSet<Pair<NodeSim, Pair<Double, NodeSim>>> completedCopy = new HashSet<>();
 		completedCopy = (HashSet<Pair<NodeSim, Pair<Double, NodeSim>>>) router.completed.clone();
@@ -122,7 +113,6 @@ public class Router {
 //				pathFinder.get(node).put(src, newPath);
 //			}
 		}
-		totalDijkstraNanos += System.nanoTime() - __dijkstraT0;
 		return new LinkedList<>(pathFinder.get(src).get(dest));
 //		travelQueue = router.getPath(dest);
 		/*path.addAll(travelQueue);

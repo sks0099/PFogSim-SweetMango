@@ -89,31 +89,6 @@ public abstract class EdgeOrchestrator {
 		task.setPath(mb.getPath());
 		return mb.getHost();
 	}
-	
-	// Added by sks0099@auburn.edu: diagnostic instrumentation - confirming/refuting whether goodHost()'s
-	// ESBModel.findPath(EdgeHost, MobileDevice) call (a second, separate call into the same expensive
-	// router.findPath() routine ESBModel.getDelay() already has its own instrumented breakdown for) accounts
-	// for the ~74% of Voronoi's assignHost() wall time not explained by the existing loop-breakdown /
-	// getDelay-breakdown diagnostics. Shared by every orchestrator that calls goodHost() (Voronoi, HAFA, etc.),
-	// so results should be read per-sweep-log, not assumed Voronoi-specific.
-	public static long totalGoodHostCalls = 0;
-	public static long totalGoodHostEarlyExitNanos = 0;
-	public static long totalGoodHostEarlyExitCalls = 0;
-	public static long totalGoodHostFindPathNanos = 0;
-	public static long totalGoodHostFindPathCalls = 0;
-	public static long totalGoodHostBwLoopNanos = 0;
-	public static long totalGoodHostBwLoopCalls = 0;
-	public static void printGoodHostBreakdown() {
-		System.out.println("---- EdgeOrchestrator.goodHost() breakdown diagnostic ----");
-		System.out.println("total calls: " + totalGoodHostCalls);
-		System.out.println("early-exit checks (isMIPSAvailable/isBWAvailable/isLatencySatisfactory): "
-				+ totalGoodHostEarlyExitCalls + " calls, " + (totalGoodHostEarlyExitNanos / 1_000_000) + " ms");
-		System.out.println("findPath(host, mb): " + totalGoodHostFindPathCalls + " calls, "
-				+ (totalGoodHostFindPathNanos / 1_000_000) + " ms");
-		System.out.println("path bandwidth-check loop: " + totalGoodHostBwLoopCalls + " calls, "
-				+ (totalGoodHostBwLoopNanos / 1_000_000) + " ms");
-		System.out.println("-----------------------------------------------------------");
-	}
 
 	/**
 	 * is the host capable of servicing the task
@@ -126,29 +101,20 @@ public abstract class EdgeOrchestrator {
 			//return false;
 		
 		//System.out.print(host.getId()+" ");
-		totalGoodHostCalls++;
-		long __eeT0 = System.nanoTime();
 		boolean __earlyExit = !host.isMIPSAvailable(mb) || !host.isBWAvailable(mb) || !host.isLatencySatisfactory(mb);
-		totalGoodHostEarlyExitNanos += System.nanoTime() - __eeT0;
-		totalGoodHostEarlyExitCalls++;
 		if (__earlyExit) {
 			return false;
 		}
 		long __fpT0 = System.nanoTime();
 		LinkedList<NodeSim> path = ((ESBModel)SimManager.getInstance().getNetworkModel()).findPath(host, mb);
-		totalGoodHostFindPathNanos += System.nanoTime() - __fpT0;
-		totalGoodHostFindPathCalls++;
-		long __bwT0 = System.nanoTime();
+
 		for (NodeSim node: path) {
 			EdgeHost tempHost = SimManager.getInstance().getLocalServerManager().findHostByWlanId(node.getLocation().getServingWlanId());
 			if (!tempHost.isBWAvailable(mb)) {
-				totalGoodHostBwLoopNanos += System.nanoTime() - __bwT0;
-				totalGoodHostBwLoopCalls++;
 				return false;
 			}
 		}
-		totalGoodHostBwLoopNanos += System.nanoTime() - __bwT0;
-		totalGoodHostBwLoopCalls++;
+
 		//System.out.println(" is good.");
         //System.out.println("HostId: "+host.getId()+" is good."); // sks0099 commented on 10/04/2025
 		return true;

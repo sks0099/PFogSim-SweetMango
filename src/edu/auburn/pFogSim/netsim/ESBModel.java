@@ -46,27 +46,7 @@ public class ESBModel extends NetworkModel {
 	private static ESBModel instance = null;
 	private Router router;
 
-	// Diagnostic timing instrumentation.
-	public static long totalGetUploadDelayNanos = 0;
-	public static long totalGetUploadDelayCalls = 0;
     private boolean isNetworkTopologySet = false;
-
-	// Added by sks0099@auburn.edu: instrumenting getDelay(Location,Location)'s internal breakdown (findNode x2,
-	// findPath, the traverse()-based hop loop, getWlanUploadDelay) to confirm which part dominates its
-	// measured 85.7s/4.9M-call cost at 6000-device scale before attempting a fix.
-	public static long totalGetDelayFindNodeNanos = 0;
-	public static long totalGetDelayFindPathNanos = 0;
-	public static long totalGetDelayTraverseNanos = 0;
-	public static long totalGetDelayTraverseCalls = 0;
-	public static long totalGetDelayWlanUploadNanos = 0;
-	public static void printGetDelayBreakdown() {
-		System.out.println("---- ESBModel.getDelay() breakdown diagnostic ----");
-		System.out.println("findNode (x2 per call): " + (totalGetDelayFindNodeNanos / 1_000_000) + " ms");
-		System.out.println("findPath: " + (totalGetDelayFindPathNanos / 1_000_000) + " ms");
-		System.out.println("traverse(): " + totalGetDelayTraverseCalls + " calls, " + (totalGetDelayTraverseNanos / 1_000_000) + " ms");
-		System.out.println("getWlanUploadDelay: " + (totalGetDelayWlanUploadNanos / 1_000_000) + " ms");
-		System.out.println("---------------------------------------------------");
-	}
 	
 	
 	/**
@@ -140,8 +120,6 @@ public class ESBModel extends NetworkModel {
 	 * */
 	@Override
 	public double getUploadDelay(int sourceDeviceId, int destDeviceId, double dataSize, boolean wifiSrc, boolean wifiDest, SimSettings.CLOUD_TRANSFER isCloud) {
-		long __t0 = System.nanoTime();
-		totalGetUploadDelayCalls++;
 		double delay = 0;
 		Location accessPointLocation = null;
 		Location destPointLocation = null;
@@ -229,7 +207,6 @@ public class ESBModel extends NetworkModel {
 		if (SimSettings.getInstance().traceEnable()) {
 			SimLogger.printLine("Target Node ID:\t" + dest.getWlanId());
 		}
-		totalGetUploadDelayNanos += System.nanoTime() - __t0;
 		return delay;
 	}
 	
@@ -519,9 +496,6 @@ public class ESBModel extends NetworkModel {
 	 * @return delay between two locations
 	*/
 	public double getDelay(EdgeHost one, EdgeHost two) {
-		
-
-			
 		double delay = 0;
 		Location source;
 		Location destination;
@@ -575,14 +549,9 @@ public class ESBModel extends NetworkModel {
 		long __fnT0 = System.nanoTime();
 		src = networkTopology.findNode(one, false);
 		dest = networkTopology.findNode(two, false);
-		totalGetDelayFindNodeNanos += System.nanoTime() - __fnT0;
-		long __fpT0 = System.nanoTime();
-	    path = router.findPath(networkTopology, src, dest);
-		totalGetDelayFindPathNanos += System.nanoTime() - __fpT0;
-		long __wuT0 = System.nanoTime();
-	    delay += getWlanUploadDelay(src.getLocation(), (avgTaskInputSize+avgTaskOutputSize), CloudSim.clock()) + SimSettings.ROUTER_PROCESSING_DELAY;
-		totalGetDelayWlanUploadNanos += System.nanoTime() - __wuT0;
-	    while (!path.isEmpty()) {
+		path = router.findPath(networkTopology, src, dest);
+		delay += getWlanUploadDelay(src.getLocation(), (avgTaskInputSize+avgTaskOutputSize), CloudSim.clock()) + SimSettings.ROUTER_PROCESSING_DELAY;
+		while (!path.isEmpty()) {
 			current = path.poll();
 			nextHop = path.peek();
 			if (nextHop == null) {
@@ -592,10 +561,10 @@ public class ESBModel extends NetworkModel {
 			// (NodeSim.traverse(), not O(1)) and was being called twice here for the identical (current,
 			// nextHop) pair - once just to check "< 0", once to get the actual value. Now called once and
 			// the result reused for both the adjacency check and the delay calculation.
-			long __trT0 = System.nanoTime();
+//			long __trT0 = System.nanoTime();
 			double proDelay = current.traverse(nextHop);
-			totalGetDelayTraverseNanos += System.nanoTime() - __trT0;
-			totalGetDelayTraverseCalls++;
+//			totalGetDelayTraverseNanos += System.nanoTime() - __trT0;
+//			totalGetDelayTraverseCalls++;
 			if (proDelay < 0) {
 				SimLogger.printLine(NOT_ADJACENT);
 			}
@@ -604,7 +573,7 @@ public class ESBModel extends NetworkModel {
 
 			long __wuT1 = System.nanoTime();
 			double conDelay = getWlanUploadDelay(distance < DISTANCE_THRESHOLD, nextHop.getLocation(), (avgTaskInputSize+avgTaskOutputSize), CloudSim.clock() + delay); 			// if distance < 20 => isClose == true
-			totalGetDelayWlanUploadNanos += System.nanoTime() - __wuT1;
+//			totalGetDelayWlanUploadNanos += System.nanoTime() - __wuT1;
 			delay += (proDelay + conDelay + SimSettings.ROUTER_PROCESSING_DELAY);
 	    }
 		return delay;

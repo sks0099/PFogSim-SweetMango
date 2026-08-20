@@ -253,8 +253,9 @@ public class EdgeHost extends Host {
 	 *	@param mb
 	 *	@return boolean
 	 */
-	// percentage_capacity never changes during a run; isMIPSCapacitySufficient() used to re-open and
-	// re-parse default_config.properties on every single call (measured at 230K+ calls, ~26s total,
+	// Added by sks0099@auburn.edu: percentage_capacity never changes during a run;
+    // isMIPSCapacitySufficient() used to re-open and re-parse default_config.properties
+    // on every single call (measured at 230K+ calls, ~26s total,
 	// in a single 1000-device Voronoi run) just to read this one property. Cached here instead, loaded
 	// once on first use.
 	private static String[] percentageCapacitiesCache = null;
@@ -304,6 +305,7 @@ public class EdgeHost extends Host {
 		Log.printLine("isMIPSAvailable:maxMips: "+maxMips);
 		//Get capacities from config file
 		double capacity = 1;
+        // sks0099@auburn.edu modified some lines of code below
 		String[] percentage_capacities = getPercentageCapacities();
 		if(percentage_capacities != null && percentage_capacities.length > 0) {
 		     capacity = Double.parseDouble(percentage_capacities[level - 1]);

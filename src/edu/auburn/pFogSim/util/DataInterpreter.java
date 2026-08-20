@@ -244,7 +244,7 @@ public class DataInterpreter {
 				break;
             case "IMPROVED_SINGLE_LAYER_VORONOI":
                 // code to execute if expression matches value1
-                System.out.println("Creation of IMPROVED_SINGLE_LAYER_VORONOI " + ConstantsClass.nodeXmlFile + " and " + ConstantsClass.linksXmlFile + " begins ...");
+                System.out.println("Creation of " + scenario + " " + ConstantsClass.nodeXmlFile + " and " + ConstantsClass.linksXmlFile + " begins ...");
                 //rawNode = null;
                 //String[] nodeLoc = new String[4];
                 //Double[] temp = new Double[4];

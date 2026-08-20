@@ -79,7 +79,8 @@ public class EdgeServerManager {
 
 	public BidiMap<Integer, Point> hostId_Location = new DualHashBidiMap<>();
 	public BidiMap<Integer, EdgeHost> hostId_EdgeHost = new DualHashBidiMap<>();
-	// O(1) lookup by exact (x, y, altitude), populated alongside hostId_EdgeHost below.
+	// sks0099@auburn.edu added the following line
+    // O(1) lookup by exact (x, y, altitude), populated alongside hostId_EdgeHost below.
 	private Map<List<Double>, EdgeHost> locationToHost = new HashMap<>();
 
     private boolean isNetworkTopologySet = false;
@@ -767,6 +768,7 @@ public class EdgeServerManager {
 	 * @return
 	 */
 	public EdgeHost findHostByLoc(Double x, Double y, Double z) {
+        //sks0099 modified the following few lines of code
 		EdgeHost host = locationToHost.get(Arrays.asList(x, y, z));
 		if (host != null) {
 			return host;
@@ -803,6 +805,8 @@ public class EdgeServerManager {
 	 * @return EdgeHost
 	 */
 	public EdgeHost findHostById(int id) {
+        //sks0099 replaced the existing few lines of code
+        // by the following
 		return hostId_EdgeHost.get(id);
 	}
 	

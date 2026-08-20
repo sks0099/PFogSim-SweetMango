@@ -199,13 +199,21 @@ public class mainApp {
 		SimLogger.printLine("Simulation started at " + now);
 		SimLogger.printLine("----------------------------------------------------------------------");
 
+		// sks0099: a pilot warm-up pass (300 devices, run before the reported sweep, meant to
+		// seed the Thompson Sampling bandit's posteriors) was tried and reverted. A single-seed
+		// (mlRandom=42) comparison looked like a clean win on orchestration time, but 5-seed
+		// replication showed seed 42 was the only one of five where it helped -- the other four
+		// seeds got worse (up to +28% orchestration time at 1000 devices), and the 5-seed mean
+		// was net negative on orchestration time and a wash-to-worse on placement quality. See
+		// the manuscript's "Pilot Warm-Up: A Seed-42 Artifact" section for the full data.
+
 		for(int iteMobileDevices=SS.getMinNumOfMobileDev(); iteMobileDevices<=SS.getMaxNumOfMobileDev(); iteMobileDevices+=SS.getMobileDevCounterSize())
 		{
 			for(int k=0; k<1; k++)
 			{
 				for(int i=0; i<1; i++)
 				{
-					if(iterationNumber > 10 || iterationNumber < 0) {
+					if(iterationNumber > 11 || iterationNumber < 0) {
 						SimLogger.printLine("Iteration Number " + iterationNumber + " hasn't been implemented yet.");
 						System.exit(0);
 					}

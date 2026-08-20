@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import edu.auburn.pFogSim.orchestrator.HAFAOrchestrator;
-import edu.auburn.pFogSim.orchestrator.VoronoiImprovedSingleLayerOrchestrator;
 import edu.auburn.pFogSim.orchestrator.VoronoiSingleLayerOrchestrator;
 import edu.boun.ConstantsClass;
 import edu.boun.edgecloudsim.sample_voronoi_app.JSONFileWriter;
@@ -154,9 +153,9 @@ public class SimManager extends SimEntity {
 		edgeServerManager.createVmList(mobileDeviceManager.getId());
 		
 		// Initialize service placement approach
-		long __initT0 = System.nanoTime();
+//		long __initT0 = System.nanoTime();
 		edgeOrchestrator.initialize();
-		System.out.println("edgeOrchestrator.initialize() executed in: " + ((System.nanoTime() - __initT0) / 1_000_000) + " ms");
+//		System.out.println("edgeOrchestrator.initialize() executed in: " + ((System.nanoTime() - __initT0) / 1_000_000) + " ms");
 
 		//Create devices
 		SimLogger.print("\n\tCreating device locations...");
@@ -320,7 +319,6 @@ public class SimManager extends SimEntity {
         System.out.println("Loop executed in: " + durationNano + " ns");
         System.out.println("Loop executed in: " + durationMilli + " ms");
         System.out.println("Loop executed in: " + durationSecond + " s");
-        //System.exit(0); // leftover debug code used to time the assignHost loop in isolation
 
         // Added by sks0099@auburn.edu: average per-device orchestration time (total time spent
         // in edgeOrchestrator.assignHost() across all devices, divided by device count), logged
@@ -371,24 +369,7 @@ public class SimManager extends SimEntity {
 				bdEdgeHost.put(entry.getValue().getId(), entry.getValue());
 				sortedMap.put(entry.getKey().getId(), entry.getValue().getId());
 			}
-			//System.out.println("Sorted Map by Key (TreeMap):");
-			//for (Map.Entry<MobileDevice, EdgeHost> entry : sortedMap.entrySet()) {
-			//	System.out.println(entry.getKey() + ": " + entry.getValue());
-			//}
-			//mobileHostAssigned.forEach((key, value) -> System.out.println(key.getId() + ": " + value.getId()+","+value.getTotalMips()+","+value.getAvailableMips()+","+value.getReserveMips()));
-			//mobileHostAssigned.forEach((key, value) -> SimLogger.printLine(key.getId() + ": " + value.getId()+","+value.getTotalMips()+","+value.getAvailableMips()+","+value.getReserveMips()));
-			//System.out.println("Mobile Device Id: Assigned Host Id, Total MIPS, Reserved MIPS, Hops, Search hops:");
-//            System.out.println("Mobile Device Id: Assigned Host Id, Total MIPS, Reserved MIPS, Hops, Search hops:");
-//			sortedMap.forEach((key, value) -> System.out.println(key + ": " + value +","+bdEdgeHost.get(value).getTotalMips()+","
-//                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
-//			sortedMap.forEach((key, value) -> SimLogger.printLine(key + ": " + value+","+bdEdgeHost.get(value).getTotalMips()+","
-//                    +bdEdgeHost.get(value).getReserveMips()+","+bdEdgeHost.get(value).getHop()+","+bdEdgeHost.get(value).getSearchHop()));
-//            for (Map.Entry<Integer, Integer> entry : sortedMap.entrySet()) {
-//                int key = entry.getKey();
-//                int value = entry.getValue();
-//                SimLogger.printLine("MD Id: "+key + " => Host Id: " + value+" TMIPS: "+bdEdgeHost.get(value).getTotalMips()+" RMIPS: "
-//                        +bdEdgeHost.get(value).getReserveMips()+" Search Hops: "+bdEdgeHost.get(value).getHop());
-//            }
+
           sortedMap.forEach((key, value) -> SimLogger.printLine("MD Id: "+key + " => Host Id: " + value+" TMIPS: "+bdEdgeHost.get(value).getTotalMips()+" RMIPS: "
                     +bdEdgeHost.get(value).getReserveMips()+" Search Hops: "+bdEdgeHost.get(value).getHop()));
             //System.out.println("Average search hops: "+edgeOrchestrator.getAverageHops());
@@ -401,46 +382,13 @@ public class SimManager extends SimEntity {
             //System.out.println("Average search hops: "+edgeOrchestrator.getAverageSearchHops());
         }
 
-        if(edgeOrchestrator instanceof VoronoiImprovedSingleLayerOrchestrator){
-            HashMap<MobileDevice, EdgeHost> mobileHostAssigned = new HashMap<>();
-            mobileHostAssigned = edgeOrchestrator.getMobileAssignment();
-            // Create a TreeMap from the HashMap
-            BidiMap<Integer, MobileDevice> bdMobileDevice = new DualHashBidiMap<>();
-            BidiMap<Integer, EdgeHost> bdEdgeHost = new DualHashBidiMap<>();
-            TreeMap<Integer, Integer> sortedMap = new TreeMap<>();
-            for (Map.Entry<MobileDevice, EdgeHost> entry : mobileHostAssigned.entrySet()) {
-                //System.out.println(entry.getKey() + ": " + entry.getKey().getId());
-                bdMobileDevice.put(entry.getKey().getId(), entry.getKey());
-                bdEdgeHost.put(entry.getValue().getId(), entry.getValue());
-                sortedMap.put(entry.getKey().getId(), entry.getValue().getId());
-            }
 
-            sortedMap.forEach((key, value) -> SimLogger.printLine("MD Id: "+key + " => Host Id: " + value+" TMIPS: "+bdEdgeHost.get(value).getTotalMips()+" RMIPS: "
-                    +bdEdgeHost.get(value).getReserveMips()+" Search Hops: "+bdEdgeHost.get(value).getHop()));
-            //System.out.println("Average search hops: "+edgeOrchestrator.getAverageHops());
-            SimLogger.printLine("Average search hops: "+edgeOrchestrator.getAverageHops());
-
-            //System.out.println("# of mobile devices assigned to cloud: "+edgeOrchestrator.getAssignedToCloudMobileDeviceCount());
-            SimLogger.printLine("# of mobile devices assigned to cloud: "+edgeOrchestrator.getAssignedToCloudMobileDeviceCount());
-            //System.out.println("# of mobile devices not assigned to any host: "+edgeOrchestrator.getUnassignedMobileDeviceCount());
-            SimLogger.printLine("# of mobile devices not assigned to any host: "+edgeOrchestrator.getUnassignedMobileDeviceCount());
-            //System.out.println("Average search hops: "+edgeOrchestrator.getAverageSearchHops());
-        }
-
-		//System.exit(869907);
-		long __cloudSimT0 = System.nanoTime();
 		CloudSim.startSimulation();
-		System.out.println("CloudSim.startSimulation() executed in: " + ((System.nanoTime() - __cloudSimT0) / 1_000_000) + " ms");
-		MobileDeviceManager.printTimingBreakdown();
-		System.out.println("ESBModel.getUploadDelay total: " + (ESBModel.totalGetUploadDelayNanos / 1_000_000) + " ms over " + ESBModel.totalGetUploadDelayCalls + " calls");
-		System.out.println("NetworkTopology.findNode total: " + (NetworkTopology.totalFindNodeNanos / 1_000_000) + " ms over " + NetworkTopology.totalFindNodeCalls + " calls (" + NetworkTopology.totalFindNodeFullScans + " full scans)");
-		System.out.println("Router.findPath: " + Router.totalFindPathCalls + " calls, " + Router.totalCacheHits + " cache hits, "
-				+ Router.totalCacheMisses + " cache misses (Dijkstra reruns), " + (Router.totalDijkstraNanos / 1_000_000) + " ms total in Dijkstra");
-		VoronoiImprovedSingleLayerOrchestrator.printFrontierStats();
-		VoronoiImprovedSingleLayerOrchestrator.printContainsStats();
-		VoronoiImprovedSingleLayerOrchestrator.printLoopBreakdownStats();
-		ESBModel.printGetDelayBreakdown();
-		EdgeOrchestrator.printGoodHostBreakdown();
+		//MobileDeviceManager.printTimingBreakdown();
+//		System.out.println("Router.findPath: " + Router.totalFindPathCalls + " calls, " + Router.totalCacheHits + " cache hits, "
+//				+ Router.totalCacheMisses + " cache misses (Dijkstra reruns), " + (Router.totalDijkstraNanos / 1_000_000) + " ms total in Dijkstra");
+		//ESBModel.printGetDelayBreakdown();
+		//EdgeOrchestrator.printGoodHostBreakdown();
 	}
 	
 	

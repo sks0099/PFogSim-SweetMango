@@ -65,31 +65,14 @@ public class MobileDeviceManager extends DatacenterBroker {
 	private int taskIdCounter=0;
 	private ArrayList<MobileDevice> mobileDevices;
 
-	// Diagnostic timing instrumentation - cumulative nanoseconds spent per code path across the whole run.
-	public static long totalCsvWriteNanos = 0;
-	public static long totalSubmitTaskNanos = 0;
-	public static long totalSubmitTaskToEdgeDeviceNanos = 0;
-	public static long totalProcessCloudletReturnNanos = 0;
-	public static long totalResponseReceivedNanos = 0;
-
-	public static void printTimingBreakdown() {
-		System.out.println("---- Diagnostic timing breakdown ----");
-		System.out.println("submitTask total (incl. CSV write, excl. submitTaskToEdgeDevice call): " + (totalSubmitTaskNanos / 1_000_000) + " ms");
-		System.out.println("  of which CSV write block: " + (totalCsvWriteNanos / 1_000_000) + " ms");
-		System.out.println("submitTaskToEdgeDevice total: " + (totalSubmitTaskToEdgeDeviceNanos / 1_000_000) + " ms");
-		System.out.println("processCloudletReturn total: " + (totalProcessCloudletReturnNanos / 1_000_000) + " ms");
-		System.out.println("RESPONSE_RECEIVED_BY_MOBILE_DEVICE total: " + (totalResponseReceivedNanos / 1_000_000) + " ms");
-		System.out.println("--------------------------------------");
-	}
-
     ConstantsClass myConstantsClass = new ConstantsClass();
     boolean generate_task_creation_csv = myConstantsClass.isGenerateTaskCreationCSV();
     String[] header = {"taskID", "mobileDevId","taskSubmitTime", "taskType", "taskLocLong", "taskLocLat", "taskLocAlt","maxDelay","taskDestLocLong","taskDestLocLat","taskDestLocAlt","taskSourceDestDistKm"};
+    // sks0099@auburn.edu added the following line -
     // Opened once on first use and kept open for the whole run instead of open/write/close per task -
     // that per-task file-handle churn was ~40% of total runtime at 6000-device scale.
     private CSVWriter taskCsvWriter = null;
-    //String[][] csvData = {};
-    //String[] csvDataRow= {};
+
 //    boolean debug=true;
 	
 	
@@ -121,7 +104,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 	 * @post $none
 	 */
 	protected void processCloudletReturn(SimEvent ev) {
-		long __t0 = System.nanoTime();
 		NetworkModel networkModel = SimManager.getInstance().getNetworkModel();
 		Task task = (Task) ev.getData();
 
@@ -179,7 +161,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 			else {
 				SimLogger.getInstance().failedDueToBandwidth(task.getCloudletId(), CloudSim.clock());
 			}
-		totalProcessCloudletReturnNanos += System.nanoTime() - __t0;
 	}
 	
 	
@@ -281,7 +262,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 			}
 			case RESPONSE_RECEIVED_BY_MOBILE_DEVICE: // Shaik updated
 			{
-				long __t0 = System.nanoTime();
 				Task task = (Task) ev.getData();
 
 				if(task.getAssociatedHostId() == SimSettings.CLOUD_HOST_ID)
@@ -372,7 +352,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 					}
 				}
 
-				totalResponseReceivedNanos += System.nanoTime() - __t0;
 				break;
 			}
 			default:
@@ -389,7 +368,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 	 * @param delay
 	 */
 	public void submitTaskToEdgeDevice(Task task, double delay) {
-		long __t0 = System.nanoTime();
 		//select a VM
 		EdgeVM selectedVM = SimManager.getInstance().getEdgeOrchestrator().getVmToOffload(task);
 		
@@ -403,6 +381,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 			
 			//bind task to related VM
 			getCloudletList().add(task);
+            // sks0099@auburn.edu modified the Following line
 			// Bind directly instead of calling bindCloudletToVm(int, int), which looks the cloudlet
 			// up via CloudletList.getById() - an O(N) scan of the whole (ever-growing) cloudlet list.
 			// We already have the reference we just added, so just set it directly - O(1).
@@ -431,7 +410,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 
 		}
 
-		totalSubmitTaskToEdgeDeviceNanos += System.nanoTime() - __t0;
 	}
 	
 	
@@ -440,7 +418,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 	 * @param edgeTask
 	 */
 	public void submitTask(EdgeTask edgeTask) {
-		long __t0 = System.nanoTime();
 		NetworkModel networkModel = SimManager.getInstance().getNetworkModel();
 		
 		//create a task
@@ -453,7 +430,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 		task.setSubmittedLocation(currentLocation);
 
         if(generate_task_creation_csv){
-            long __csvT0 = System.nanoTime();
+            // sks0099@auburn.edu modified the following block
             // Writer is opened once (below) and kept open for the whole run - see taskCsvWriter field.
             try {
                 if (taskCsvWriter == null) {
@@ -488,8 +465,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 
 //            System.out.println("Task Id:"+taskIdCounter+", Mobile device Id: "+task.getMobileDeviceId()+", Task submission time: "+
 //                    CloudSim.clock()+", Task type: "+
-//                    task.getTaskType()+", Task submission location: "+currentLocation);
-            totalCsvWriteNanos += System.nanoTime() - __csvT0;
+//                    task.getTaskType()+", Task submission location:
         }
 		//add related task to log list
 		SimLogger.getInstance().addLog(CloudSim.clock(),
@@ -508,7 +484,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 				SimLogger.printLine("submitTask: Task: "+task.getCloudletId()+"  Assigned Host: "+task.getAssociatedHostId()+" - task rejected due to host unavailability");
 			}
 
-			totalSubmitTaskNanos += System.nanoTime() - __t0;
 			return;
 		}
 		//Qian add host to utilization map
@@ -584,7 +559,6 @@ public class MobileDeviceManager extends DatacenterBroker {
 			SimLogger.printLine("Unknown nextHopId! Terminating simulation...");
 			System.exit(0);
 		}*/
-		totalSubmitTaskNanos += System.nanoTime() - __t0;
 	}
 
 
@@ -634,6 +608,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 	public void migrateTask(Task task) {
 		EdgeVM vm = SimManager.getInstance().getEdgeOrchestrator().getVmToOffload(task);
 		task.setAssociatedHostId(vm.getHost().getId());
+        // sks0099@auburn.edu modified the next line
 		// Bind directly rather than via bindCloudletToVm(int, int) - see submitTaskToEdgeDevice for why.
 		task.setVmId(vm.getId());
 		schedule(getVmsToDatacentersMap().get(task.getVmId()), 0, CloudSimTags.CLOUDLET_SUBMIT, task);
@@ -641,6 +616,7 @@ public class MobileDeviceManager extends DatacenterBroker {
 
 
 	/**
+     * sks0099@auburn.edu added the following method
 	 * Flush and close the task-creation CSV writer (opened once in submitTask and kept open for
 	 * the whole run) so buffered rows are not lost.
 	 */
